@@ -12,7 +12,13 @@ Cliente (Wagner, via Loghanth) **não envia material**. Nada de depender de arqu
 
 ## O que entra
 - Código-fonte, scripts geradores de mock, testes, README e docs.
-- Commits **locais**, com mensagem clara dizendo o que mudou. **Sem push** — não existe remoto configurado para este projeto.
+- Commits **com push para o GitHub** no remoto `origin`: `Wagner-Dev-Souza/agentes-nf-pedidos` (**privado**). Nunca faça push de segredo.
+
+## Modelo de branches (remoto `origin`)
+- `squad-pecados` — **é aqui que o time trabalha e commita** (é a branch do worktree do Orca).
+- `homolog` — **homologação**: onde o trabalho converge antes de ir para produção.
+- `main` — **produção**: só recebe o que já passou por `homolog`.
+- Ordinal de promoção: `squad-pecados` → `homolog` → `main`. **Nada de commitar direto em `main`.**
 
 ## Requisito de entrega: configuração simples e operação em produção
 
