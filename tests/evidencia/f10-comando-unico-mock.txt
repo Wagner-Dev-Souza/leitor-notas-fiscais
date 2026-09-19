@@ -1,0 +1,31 @@
+==============================================================
+Pipeline de leitura de NF/pedidos - resumo da rodada
+==============================================================
+Modo     : mock | config: nenhum .env (padrao)
+Inbox    : data\mocks
+Saida    : data\out
+Banco    : data\out\pipeline.db
+Rodada   : 20260919-141317
+--------------------------------------------------------------
+Artefatos ingeridos : 20 (pdf 12 | mensagens 8)
+Auto-aprovados      : 0
+Em revisao humana   : 0
+Rejeitados          : 0
+Deduplicados        : 20
+Linhas na planilha  : 7
+--------------------------------------------------------------
+Leitura por motor   : ocr_simulado 1 | parser 8 | pdfplumber 11
+OCR                 : 1 artefato(s) lido(s) por OCR SIMULADO (sidecar .ocr.txt): a leitura nao vem de motor de OCR real e esta marcada como simulada.
+Auditoria           : 20 linha(s) nesta rodada | trilha cumulativa: 1300 linha(s)
+--------------------------------------------------------------
+Arquivos gerados:
+   xlsx              data\out\controle_financeiro.xlsx
+   csv               data\out\controle_financeiro.csv
+   auditoria         data\out\auditoria.jsonl
+   auditoria_rodada  data\out\auditoria_rodada_20260919-141317.jsonl
+   fila_excecoes     data\out\fila_excecoes.json
+   painel            data\out\painel.html
+   resumo            data\out\resumo.json
+   db                data\out\pipeline.db
+==============================================================
+Rodada concluida em 0.771s
