@@ -76,11 +76,18 @@ data/mocks/telegram/     telegram_<n>.jsonl
 data/mocks/manifest.json VERDADE DE REFERENCIA (ground truth) para os testes
 data/out/controle_financeiro.xlsx
 data/out/controle_financeiro.csv
-data/out/auditoria.jsonl
+data/out/auditoria.jsonl                  (CUMULATIVA: append entre rodadas, nunca truncada)
+data/out/auditoria_rodada_<AAAAMMDD-HHMMSS>.jsonl   (recorte por rodada)
 data/out/fila_excecoes.json
 data/out/painel.html
 data/out/pipeline.db    (sqlite)
 ```
+
+Emenda do PO (2026-09-19, pos-onda 1): `auditoria_rodada_*.jsonl` foi incorporado ao
+layout. A trilha de auditoria e **cumulativa** e cada linha traz `rodada_id`; uma trilha
+que se apaga a cada rodada nao e trilha. Os arquivos regeneraveis a partir do SQLite
+(planilha, csv, fila, painel, resumo) podem ser reescritos a cada rodada - a fonte da
+verdade e o banco.
 
 `tools/verificar.py` (preguica) roda o comando unico duas vezes e prova a idempotencia
 (contagem de linhas igual nas duas rodadas). E a ferramenta que o PO e o QA usam.
@@ -104,8 +111,11 @@ O PDF escaneado e gerado por PIL como **PDF de imagem, sem camada de texto**
 `app/ingress.ocr_pdf()` resolve assim, nesta ordem:
 1. Se `pytesseract` **e** o binario `tesseract` existirem -> usa de verdade (`motor=tesseract`).
 2. Senao -> motor **simulado**: le o sidecar `<arquivo>.ocr.txt`, que contem a transcricao
-   com degradacao realista de OCR (confusao de `0/O`, `1/l/I`, `5/S`, `2/Z`, espacos
-   espurios). `motor=ocr_simulado`, `confianca_leitura` entre 0.55 e 0.75.
+   com degradacao realista de OCR. **Conjunto de degradacao FECHADO e exaustivo**
+   (emenda do PO, 2026-09-19): `0/O`, `1/l/I`, `5/S`, `2/Z` e espacos espurios. Nada fora
+   disso. `motor=ocr_simulado`, `confianca_leitura` entre 0.55 e 0.75, e
+   `tem_camada_texto=False` (o PDF **nao** tem camada de texto - o campo descreve o PDF,
+   nao a origem do texto).
 3. Sem sidecar e sem tesseract -> `TextoExtraido(texto="", tem_camada_texto=False)`,
    confianca 0.0, e o documento vira excecao `documento_ilegivel`.
 
@@ -197,6 +207,11 @@ def main(argv=None) -> int
 - `valor_total` so publica com ancora deterministica **e** aritmetica dos itens que fecha.
 - Diferenca `<= 0,02` -> casa. `0,02 < dif <= 0,10` -> revisao (`MOTIVO_SUSPEITA_ITENS`).
   Dif `> 0,10` -> revisao obrigatoria com `MOTIVO_DIVERGENCIA_ITENS`; **nao escreve** o valor.
+- **Emenda do PO (2026-09-19):** `MOTIVO_DIVERGENCIA_ITENS` exige uma diferenca
+  **calculada**. Quando a soma nao pode ser calculada (item sem quantidade ou sem valor
+  unitario, itens ausentes ou parciais), o motivo correto e `MOTIVO_TOTAL_SEM_DETALHAMENTO`
+  - nao se chama "divergencia" aquilo que nao foi medido. Dois codigos para o mesmo fato
+  quebram triagem, painel e relatorio.
 - CNPJ com DV invalido, chave de acesso com DV invalido, valor ausente/fora da faixa
   (`R$ 0,01` a `R$ 10.000.000`), documento ilegivel -> rejeitado + `fila_excecoes`.
 - Score do documento: media ponderada, peso 3 para `valor_total` e `emitente_cnpj`,

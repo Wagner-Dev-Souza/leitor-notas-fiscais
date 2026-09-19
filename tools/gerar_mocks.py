@@ -33,10 +33,12 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import random
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
@@ -177,7 +179,31 @@ def brl_data(d: datetime) -> str:
 
 
 _MAPA_DIGITO = {"0": "O", "1": "l", "5": "S", "2": "Z"}
-_MAPA_LETRA = {"O": "0", "I": "l", "l": "I", "S": "5", "Z": "2", "B": "8", "E": "F"}
+_MAPA_LETRA = {"O": "0", "I": "l", "l": "I", "S": "5", "Z": "2"}
+
+# CONJUNTO DE DEGRADACAO CONGELADO (contrato secao 4.3, emenda do PO):
+# apenas 0/O, 1/l/I, 5/S, 2/Z e espacos espurios. NAO ampliar - o extrator (F1)
+# recupera exatamente essas classes; qualquer confusao fora da lista (F/E, 8/B, ...)
+# quebra o caso B1 sem que o contrato defina quem deve desfaze-la.
+# O self-check prova que o sidecar so usa essas classes.
+PARES_CONFUSAO_PERMITIDOS = {
+    ("0", "O"), ("O", "0"),
+    ("1", "l"), ("1", "I"), ("l", "1"), ("I", "1"), ("l", "I"), ("I", "l"),
+    ("5", "S"), ("S", "5"),
+    ("2", "Z"), ("Z", "2"),
+}
+
+
+def compactar(texto: str) -> str:
+    """Tira TODO espaco - alinha original e degradado apesar dos espacos espurios."""
+    return "".join(texto.split())
+
+
+def recuperar_digitos(texto: str) -> str:
+    """Desfaz as classes de confusao congeladas (para conferir campo numerico)."""
+    mapa = {"O": "0", "o": "0", "l": "1", "I": "1", "i": "1",
+            "S": "5", "s": "5", "Z": "2", "z": "2"}
+    return "".join(mapa.get(c, c) for c in texto)
 
 
 def degradar_digitos(texto: str, rng: random.Random, prob: float = 0.7) -> str:
@@ -488,25 +514,29 @@ def linhas_documento(doc: DocPDF, degradar: bool = False) -> list[tuple[str, str
 
 def render_pdf(caminho: Path, linhas: list[tuple[str, str]], titulo: str) -> None:
     caminho.parent.mkdir(parents=True, exist_ok=True)
-    canv = rl_canvas.Canvas(str(caminho), pagesize=A4, invariant=1)
-    canv.setTitle(titulo)
-    canv.setAuthor("tools/gerar_mocks.py")
-    canv.setCreator("tools/gerar_mocks.py")
-    canv.setSubject("material sintetico (mock) do pipeline")
-    y = A4[1] - 50
-    for texto, estilo in linhas:
-        if estilo == "titulo":
-            canv.setFont("Helvetica-Bold", 11)
-        elif estilo == "bold":
-            canv.setFont("Helvetica-Bold", 9)
-        elif estilo == "mono":
-            canv.setFont("Courier", 8.5)
-        else:
-            canv.setFont("Helvetica", 9)
-        canv.drawString(42, y, texto)
-        y -= 13
-    canv.showPage()
-    canv.save()
+
+    def _desenhar() -> None:
+        canv = rl_canvas.Canvas(str(caminho), pagesize=A4, invariant=1)
+        canv.setTitle(titulo)
+        canv.setAuthor("tools/gerar_mocks.py")
+        canv.setCreator("tools/gerar_mocks.py")
+        canv.setSubject("material sintetico (mock) do pipeline")
+        y = A4[1] - 50
+        for texto, estilo in linhas:
+            if estilo == "titulo":
+                canv.setFont("Helvetica-Bold", 11)
+            elif estilo == "bold":
+                canv.setFont("Helvetica-Bold", 9)
+            elif estilo == "mono":
+                canv.setFont("Courier", 8.5)
+            else:
+                canv.setFont("Helvetica", 9)
+            canv.drawString(42, y, texto)
+            y -= 13
+        canv.showPage()
+        canv.save()
+
+    com_retry(_desenhar, str(caminho))
 
 
 def _fonte(tamanho: int):
@@ -543,12 +573,15 @@ def render_pdf_imagem(caminho: Path, linhas: list[tuple[str, str]], rng: random.
         img.putpixel((x, yy), rng.randrange(120, 215))
     img = img.rotate(0.8, resample=Image.BICUBIC, fillcolor=255)
     caminho.parent.mkdir(parents=True, exist_ok=True)
-    img.convert("L").save(
-        caminho,
-        "PDF",
-        resolution=150.0,
-        creationDate="D:20260101000000-03'00'",
-        modDate="D:20260101000000-03'00'",
+    com_retry(
+        lambda: img.convert("L").save(
+            caminho,
+            "PDF",
+            resolution=150.0,
+            creationDate="D:20260101000000-03'00'",
+            modDate="D:20260101000000-03'00'",
+        ),
+        str(caminho),
     )
 
 
@@ -657,6 +690,21 @@ def montar_documentos(seed: int) -> tuple[list[DocPDF], list[DocMsg], list[Forne
         docs.append(doc)
         return doc
 
+    def copia(nome_origem: str, nome_novo: str, *, caso: str) -> DocPDF:
+        """Caso B4: copia identica em bytes - e o mesmo documento, logo o MESMO esperado.
+
+        Nasce de deepcopy do original para que nenhum campo do manifest possa
+        divergir (foi assim que uma chave inventada entrou na verdade de referencia).
+        """
+        base = next(d for d in docs if d.nome == nome_origem)
+        novo = copy.deepcopy(base)
+        novo.nome = nome_novo
+        novo.copia_de = nome_origem
+        novo.caso_borda = caso
+        novo.observacao = None
+        docs.append(novo)
+        return novo
+
     # --- NFs de texto (casos normais)
     nf("FORN-ALFA_nf_1001.pdf", alfa, 1001, dt(13, 3), [
         it(alfa.itens[0], 100, "PC", 125),
@@ -711,11 +759,10 @@ def montar_documentos(seed: int) -> tuple[list[DocPDF], list[DocMsg], list[Forne
     ], vencimento=dt(20, 4), caso="B1", escaneado=True)
 
     # --- pedidos e a copia identica (B4)
-    nf("FORN-ALFA_nf_1001_copia.pdf", alfa, 1001, dt(13, 3), [
-        it(alfa.itens[0], 100, "PC", 125),
-        it(alfa.itens[1], 250, "PC", 32),
-        it(alfa.itens[2], 100, "PC", 45),
-    ], vencimento=dt(12, 4), caso="B4", copia_de="FORN-ALFA_nf_1001.pdf")
+    # A copia e o MESMO documento: nasce de deepcopy do original, entao todo campo
+    # do `esperado` (chave de acesso, itens, valores, datas) e identico por
+    # construcao - e o arquivo e copiado byte a byte no `gerar()`.
+    copia("FORN-ALFA_nf_1001.pdf", "FORN-ALFA_nf_1001_copia.pdf", caso="B4")
     pedido("FORN-ALFA_pedido_5001.pdf", alfa, 5001, dt(18, 3), [
         it(alfa.itens[0], 100, "PC", 125),
         it(alfa.itens[2], 100, "PC", 45),
@@ -887,22 +934,44 @@ def sha256_arquivo(caminho: Path) -> str:
 # -------------------------------------------------------------------------- run
 
 
+def com_retry(acao, descricao: str, tentativas: int = 8, espera: float = 0.35):
+    """Executa `acao` tolerando lock de arquivo do Windows.
+
+    Este worktree tem varios agentes rodando ao mesmo tempo: enquanto geramos, o QA
+    pode estar lendo/abrindo `data/mocks/**`. Um `PermissionError` transitorio nao
+    pode derrubar a geracao nem deixar o material pela metade.
+    """
+    for tentativa in range(tentativas):
+        try:
+            return acao()
+        except PermissionError:
+            if tentativa == tentativas - 1:
+                raise SystemExit(
+                    f"ERRO: {descricao} esta em uso por outro processo (lock do Windows) "
+                    f"apos {tentativas} tentativas"
+                )
+            time.sleep(espera)
+
+
 def limpar(out: Path) -> None:
     for sub in ("pdf", "whatsapp", "telegram"):
         alvo = out / sub
         if alvo.exists():
-            shutil.rmtree(alvo)
+            com_retry(lambda a=alvo: shutil.rmtree(a), str(alvo))
     manifest = out / "manifest.json"
     if manifest.exists():
-        manifest.unlink()
+        com_retry(lambda m=manifest: m.unlink(), str(manifest))
 
 
 NOTAS_MANIFEST = {
     "B1": ("PDF de imagem, SEM camada de texto (pypdf extract_text() == ''). O caminho e o OCR "
-           "simulado: o sidecar .ocr.txt traz a transcricao degradada com confusao 0/O, 1/l/I, "
-           "5/S, 2/Z e espacos espurios - CNPJ e chave de acesso chegam com letras no lugar de "
-           "digitos e o extrator precisa normalizar. Os valores deste `esperado` sao os REAIS "
-           "do documento; a leitura deve sair com confianca menor (motor=ocr_simulado)."),
+           "simulado: o sidecar .ocr.txt traz a transcricao degradada. CONJUNTO DE DEGRADACAO "
+           "(congelado no contrato 4.3 - nenhuma outra confusao e usada): pares 0/O, 1/l/I "
+           "(inclui l/I), 5/S, 2/Z e espacos espurios. CNPJ e chave de acesso chegam com letra "
+           "no lugar de digito e o extrator precisa desfazer essas classes; o gerador prova no "
+           "self-check que nenhum par fora dessa lista aparece no sidecar. Os valores deste "
+           "`esperado` sao os REAIS do documento e a leitura deve sair com confianca menor "
+           "(motor=ocr_simulado)."),
     "B2": ("Soma dos itens (R$ 526,40) difere do VALOR TOTAL DA NOTA impresso (R$ 676,40) em "
            "R$ 150,00 (> R$ 0,10): revisao_humana + excecao, SEM linha na planilha."),
     "B3": ("Mensagem sem valor monetario: extrai o que existe (numero do pedido) e o resto fica "
@@ -937,7 +1006,7 @@ def gerar(out: Path, seed: int) -> dict:
         destino = out / "pdf" / doc.nome
         if doc.copia_de:
             origem = out / "pdf" / doc.copia_de
-            shutil.copyfile(origem, destino)      # copia IDENTICA em bytes (B4)
+            com_retry(lambda o=origem, d=destino: shutil.copyfile(o, d), str(destino))
         elif doc.escaneado:
             rng_img = random.Random(f"{seed}:imagem:{doc.nome}")
             render_pdf_imagem(destino, linhas_documento(doc, degradar=False), rng_img)
@@ -947,7 +1016,7 @@ def gerar(out: Path, seed: int) -> dict:
                 caminho_com_stem_ocr(destino),      # <nome>_escaneada.ocr.txt   (secao 4.1)
                 destino.with_name(destino.name + ".ocr.txt"),  # <arquivo>.ocr.txt (4.3)
             ):
-                alvo.write_text(side, encoding="utf-8")
+                com_retry(lambda a=alvo: a.write_text(side, encoding="utf-8"), str(alvo))
                 criados.append(alvo)
         else:
             render_pdf(destino, linhas_documento(doc), f"{doc.tipo_documento} {doc.numero}")
@@ -972,7 +1041,12 @@ def gerar(out: Path, seed: int) -> dict:
             if msg.canal == CANAL_WHATSAPP
             else envelope_telegram(msg, indice)
         )
-        destino.write_text(json.dumps(envelope, ensure_ascii=False) + "\n", encoding="utf-8")
+        com_retry(
+            lambda d=destino, e=envelope: d.write_text(
+                json.dumps(e, ensure_ascii=False) + "\n", encoding="utf-8"
+            ),
+            str(destino),
+        )
         criados.append(destino)
         itens_manifest.append({
             **_caminhos_manifest(destino, out),
@@ -1005,14 +1079,35 @@ def gerar(out: Path, seed: int) -> dict:
         "itens": itens_manifest,
     }
     caminho_manifest = out / "manifest.json"
-    caminho_manifest.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    com_retry(
+        lambda: caminho_manifest.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        ),
+        str(caminho_manifest),
     )
     criados.append(caminho_manifest)
     return manifest
 
 
 # ----------------------------------------------------------------- self-check
+
+
+def _texto_conferencia(out: Path, item: dict) -> str:
+    """Texto onde os valores do `esperado` tem de aparecer literalmente.
+
+    PDF com camada de texto -> texto extraido; PDF escaneado -> sidecar do OCR
+    simulado com as confusoes congeladas ja desfeitas; mensagem -> o proprio JSON.
+    """
+    caminho = out / item["arquivo"]
+    if caminho.suffix == ".pdf":
+        if item["arquivo"].endswith("_escaneada.pdf"):
+            lado = caminho.with_name(caminho.stem + ".ocr.txt")
+            return recuperar_digitos(lado.read_text(encoding="utf-8"))
+        from pypdf import PdfReader
+
+        leitor = PdfReader(str(caminho))
+        return "".join((pagina.extract_text() or "") for pagina in leitor.pages)
+    return caminho.read_text(encoding="utf-8")
 
 
 def self_check(out: Path, manifest: dict) -> list[str]:
@@ -1059,6 +1154,97 @@ def self_check(out: Path, manifest: dict) -> list[str]:
             raise SystemExit("ERRO: o PDF escaneado ganhou camada de texto")
         if not lado.exists():
             raise SystemExit("ERRO: sidecar de OCR ausente")
+
+    # --- sanidade D1.a: mesmo sha256 => mesmo `esperado` (caso B4)
+    por_hash: dict[str, list[dict]] = {}
+    for item in manifest["itens"]:
+        if item["arquivo"].endswith(".pdf"):
+            por_hash.setdefault(item["sha256"], []).append(item)
+    for h, grupo in por_hash.items():
+        if len(grupo) < 2:
+            continue
+        referencia = grupo[0]
+        for outro in grupo[1:]:
+            if outro["esperado"] != referencia["esperado"]:
+                raise SystemExit(
+                    f"ERRO: {outro['arquivo']} tem os mesmos bytes de "
+                    f"{referencia['arquivo']} mas o `esperado` diverge"
+                )
+        evidencias.append(
+            f"BYTES IDENTICOS sha256:{h[:12]} -> {[g['arquivo'] for g in grupo]} "
+            f"com `esperado` identico: True"
+        )
+
+    # --- sanidade D1.b: todo valor do manifest aparece no documento
+    conferencias = 0
+    for item in manifest["itens"]:
+        esp = item["esperado"]
+        caminho = out / item["arquivo"]
+        texto = _texto_conferencia(out, item)
+        digitos = "".join(c for c in texto if c.isdigit())
+        checagens = []
+        if esp.get("chave_acesso_nf"):
+            checagens.append(("chave_acesso_nf", esp["chave_acesso_nf"], digitos))
+        if esp.get("emitente_cnpj"):
+            checagens.append(("emitente_cnpj", esp["emitente_cnpj"], digitos))
+        if esp.get("numero_pedido"):
+            checagens.append(("numero_pedido", esp["numero_pedido"], texto))
+        if esp.get("valor_total_centavos") is not None:
+            checagens.append(("valor_total_centavos", brl(esp["valor_total_centavos"]), texto))
+        # Datas e itens: so em documento com camada de texto. O escaneado (B1) e coberto
+        # integralmente pela conferencia de degradacao (D2), que compara o sidecar com o
+        # documento original caractere a caractere sob as classes de confusao congeladas.
+        if caminho.suffix == ".pdf" and not item["arquivo"].endswith("_escaneada.pdf"):
+            for campo in ("data_emissao", "data_vencimento"):
+                iso = esp.get(campo)
+                if iso:
+                    ano, mes, dia = iso.split("-")
+                    checagens.append((campo, f"{dia}/{mes}/{ano}", texto))
+            for n, it_esp in enumerate(esp.get("itens") or [], start=1):
+                checagens.append((f"item{n}.descricao", it_esp["descricao"], texto))
+                if it_esp.get("quantidade") is not None:
+                    checagens.append((f"item{n}.quantidade",
+                                      qtd_texto(Decimal(it_esp["quantidade"])), texto))
+                if it_esp.get("valor_total_centavos") is not None:
+                    checagens.append((f"item{n}.valor_total",
+                                      brl_curto(it_esp["valor_total_centavos"]), texto))
+        for campo, agulha, palheiro in checagens:
+            conferencias += 1
+            if agulha not in palheiro:
+                raise SystemExit(
+                    f"ERRO: {item['arquivo']}: {campo}={agulha} nao aparece no documento"
+                )
+    evidencias.append(
+        f"MANIFEST x DOCUMENTO: {conferencias} conferencias literais (chave de acesso, CNPJ, "
+        f"numero do pedido, valor total, datas e itens com quantidade e valor) em "
+        f"{len(manifest['itens'])} itens -> todas OK"
+    )
+
+    # --- sanidade D2: o sidecar do OCR so usa o conjunto CONGELADO de confusoes
+    docs = {d.nome: d for d in montar_documentos(manifest["seed"])[0]}
+    for item in manifest["itens"]:
+        if not item["arquivo"].endswith("_escaneada.pdf"):
+            continue
+        nome = Path(item["arquivo"]).name
+        doc = docs[nome]
+        lado = out / item["arquivo"]
+        lado = lado.with_name(lado.stem + ".ocr.txt")
+        original = compactar("\n".join(t for t, _ in linhas_documento(doc, degradar=False)))
+        degradado = compactar(lado.read_text(encoding="utf-8"))
+        if len(original) != len(degradado):
+            raise SystemExit(
+                f"ERRO: sidecar de {nome} tem {len(degradado)} caracteres uteis; "
+                f"o documento tem {len(original)} (nao e so confusao de caractere)"
+            )
+        pares = {(a, b) for a, b in zip(original, degradado) if a != b}
+        fora = pares - PARES_CONFUSAO_PERMITIDOS
+        evidencias.append(
+            f"DEGRADACAO OCR {nome}: {len(original)} caracteres comparados | pares de "
+            f"confusao usados: {sorted(pares)} | fora de 0/O, 1/l/I, 5/S, 2/Z: "
+            f"{sorted(fora) or 'NENHUM'}"
+        )
+        if fora:
+            raise SystemExit(f"ERRO: degradacao de OCR fora do contrato: {sorted(fora)}")
 
     return evidencias
 

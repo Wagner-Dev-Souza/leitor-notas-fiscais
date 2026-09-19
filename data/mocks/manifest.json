@@ -403,7 +403,7 @@
         ]
       },
       "observacao": null,
-      "nota_manifest": "PDF de imagem, SEM camada de texto (pypdf extract_text() == ''). O caminho e o OCR simulado: o sidecar .ocr.txt traz a transcricao degradada com confusao 0/O, 1/l/I, 5/S, 2/Z e espacos espurios - CNPJ e chave de acesso chegam com letras no lugar de digitos e o extrator precisa normalizar. Os valores deste `esperado` sao os REAIS do documento; a leitura deve sair com confianca menor (motor=ocr_simulado)."
+      "nota_manifest": "PDF de imagem, SEM camada de texto (pypdf extract_text() == ''). O caminho e o OCR simulado: o sidecar .ocr.txt traz a transcricao degradada. CONJUNTO DE DEGRADACAO (congelado no contrato 4.3 - nenhuma outra confusao e usada): pares 0/O, 1/l/I (inclui l/I), 5/S, 2/Z e espacos espurios. CNPJ e chave de acesso chegam com letra no lugar de digito e o extrator precisa desfazer essas classes; o gerador prova no self-check que nenhum par fora dessa lista aparece no sidecar. Os valores deste `esperado` sao os REAIS do documento e a leitura deve sair com confianca menor (motor=ocr_simulado)."
     },
     {
       "arquivo": "pdf/FORN-ALFA_nf_1001_copia.pdf",
@@ -415,7 +415,7 @@
       "esperado": {
         "tipo_documento": "nf",
         "numero_pedido": "1001",
-        "chave_acesso_nf": "35260372973380000232550010000010011748910120",
+        "chave_acesso_nf": "35260372973380000232550010000010011968201250",
         "emitente_nome": "ALFA DISTRIBUIDORA DE PECAS LTDA",
         "emitente_cnpj": "72973380000232",
         "data_emissao": "2026-03-13",

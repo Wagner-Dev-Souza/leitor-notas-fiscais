@@ -1,0 +1,386 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- <local>                                                            \.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: <local>                                                            
+collecting ... collected 284 items
+
+tests/test_adversarial.py::test_b5_injecao_no_pdf_preserva_o_valor_real PASSED [  0%]
+tests/test_adversarial.py::test_b5_injecao_no_pdf_vai_para_revisao_na_trilha_e_na_fila PASSED [  0%]
+tests/test_adversarial.py::test_b5_injecao_no_pdf_nao_gera_linha_publicada PASSED [  1%]
+tests/test_adversarial.py::test_b5_injecao_na_mensagem_preserva_o_valor_real PASSED [  1%]
+tests/test_adversarial.py::test_b5_valor_da_injecao_nunca_aparece_em_artefato_gerado PASSED [  1%]
+tests/test_adversarial.py::test_injecao_em_mensagem_construida_no_teste_nao_obedece PASSED [  2%]
+tests/test_adversarial.py::test_b2_divergencia_acima_da_tolerancia_e_sinalizada PASSED [  2%]
+tests/test_adversarial.py::test_b2_nao_publica_linha_na_planilha PASSED  [  2%]
+tests/test_adversarial.py::test_b2_excecao_leva_os_numeros_da_divergencia PASSED [  3%]
+tests/test_adversarial.py::test_documento_ilegivel_vira_excecao_e_nao_publica_nada PASSED [  3%]
+tests/test_adversarial.py::test_documento_ilegivel_nao_gera_linha_na_planilha PASSED [  3%]
+tests/test_adversarial.py::test_documento_ilegivel_fica_marcado_como_rejeitado_no_banco PASSED [  4%]
+tests/test_adversarial.py::test_cnpj_com_dv_invalido_e_rejeitado_e_nao_publicado PASSED [  4%]
+tests/test_adversarial.py::test_chave_com_dv_invalido_e_rejeitada_e_nao_publicada PASSED [  4%]
+tests/test_adversarial.py::test_nf_com_dv_torto_nao_vira_linha_na_planilha PASSED [  5%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [  5%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [  5%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [  6%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [  6%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [  7%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [  7%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [  7%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [  8%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [  8%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [  8%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [  9%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [  9%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [  9%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 10%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 10%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 10%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 11%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 11%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 11%]
+tests/test_extracao.py::test_tipo_documento_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 12%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 12%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 13%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 13%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 13%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 14%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 14%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 14%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 15%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 15%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 15%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 16%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 16%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [ 16%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 17%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 17%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 17%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 18%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 18%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 19%]
+tests/test_extracao.py::test_numero_pedido_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 19%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 19%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 20%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 20%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 20%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 21%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 21%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 21%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 22%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] FAILED [ 22%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 22%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 23%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 23%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [ 23%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 24%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 24%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 25%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 25%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 25%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 26%]
+tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 26%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 26%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 27%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 27%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 27%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 28%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 28%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 28%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] FAILED [ 29%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 29%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 29%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 30%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 30%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [ 30%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 31%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 31%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 32%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 32%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 32%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 33%]
+tests/test_extracao.py::test_nome_do_emitente_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 33%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 33%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 34%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 34%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 34%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 35%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 35%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 35%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 36%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 36%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 36%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 37%]
+tests/test_extracao.py::test_datas_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 37%]
+tests/test_extracao.py::test_datas_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [ 38%]
+tests/test_extracao.py::test_datas_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 38%]
+tests/test_extracao.py::test_datas_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 38%]
+tests/test_extracao.py::test_datas_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 39%]
+tests/test_extracao.py::test_datas_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 39%]
+tests/test_extracao.py::test_datas_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 39%]
+tests/test_extracao.py::test_datas_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 40%]
+tests/test_extracao.py::test_datas_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 40%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 40%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 41%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 41%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 41%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 42%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 42%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 42%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 43%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 43%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 44%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 44%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 44%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [ 45%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 45%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 45%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 46%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 46%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 46%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 47%]
+tests/test_extracao.py::test_valor_total_e_soma_dos_itens_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 47%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 47%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 48%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 48%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 48%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 49%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 49%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 50%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] FAILED [ 50%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 50%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 51%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 51%]
+tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 51%]
+tests/test_extracao.py::test_itens_contra_manifest[whatsapp/whatsapp_1.jsonl] PASSED [ 52%]
+tests/test_extracao.py::test_itens_contra_manifest[whatsapp/whatsapp_2.jsonl] PASSED [ 52%]
+tests/test_extracao.py::test_itens_contra_manifest[whatsapp/whatsapp_3.jsonl] PASSED [ 52%]
+tests/test_extracao.py::test_itens_contra_manifest[whatsapp/whatsapp_4.jsonl] PASSED [ 53%]
+tests/test_extracao.py::test_itens_contra_manifest[telegram/telegram_1.jsonl] PASSED [ 53%]
+tests/test_extracao.py::test_itens_contra_manifest[telegram/telegram_2.jsonl] PASSED [ 53%]
+tests/test_extracao.py::test_itens_contra_manifest[telegram/telegram_3.jsonl] PASSED [ 54%]
+tests/test_extracao.py::test_itens_contra_manifest[telegram/telegram_4.jsonl] PASSED [ 54%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 54%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 55%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 55%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 55%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] FAILED [ 56%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 56%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 57%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 57%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 57%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 58%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 58%]
+tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 58%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 59%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 59%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 59%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 60%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 60%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 60%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 61%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 61%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 61%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 62%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 62%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 63%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[whatsapp/whatsapp_1.jsonl] PASSED [ 63%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[whatsapp/whatsapp_2.jsonl] PASSED [ 63%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[whatsapp/whatsapp_3.jsonl] PASSED [ 64%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[whatsapp/whatsapp_4.jsonl] PASSED [ 64%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[telegram/telegram_1.jsonl] PASSED [ 64%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[telegram/telegram_2.jsonl] PASSED [ 65%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[telegram/telegram_3.jsonl] PASSED [ 65%]
+tests/test_extracao.py::test_campo_ausente_e_none_nunca_zero_ou_string_vazia[telegram/telegram_4.jsonl] PASSED [ 65%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-ALFA_nf_1001.pdf] PASSED [ 66%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-ALFA_nf_1002.pdf] PASSED [ 66%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-BETA_nf_2001.pdf] PASSED [ 66%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-GAMA_nf_3001.pdf] PASSED [ 67%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-ALFA_nf_1003.pdf] PASSED [ 67%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-BETA_nf_2002.pdf] PASSED [ 67%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-GAMA_nf_3002.pdf] PASSED [ 68%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-BETA_nf_2003_escaneada.pdf] PASSED [ 68%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-ALFA_nf_1001_copia.pdf] PASSED [ 69%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-ALFA_pedido_5001.pdf] PASSED [ 69%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-BETA_pedido_5002.pdf] PASSED [ 69%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[pdf/FORN-GAMA_pedido_5003.pdf] PASSED [ 70%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[whatsapp/whatsapp_1.jsonl] PASSED [ 70%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[whatsapp/whatsapp_2.jsonl] PASSED [ 70%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[whatsapp/whatsapp_3.jsonl] PASSED [ 71%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[whatsapp/whatsapp_4.jsonl] PASSED [ 71%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[telegram/telegram_1.jsonl] PASSED [ 71%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[telegram/telegram_2.jsonl] PASSED [ 72%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[telegram/telegram_3.jsonl] PASSED [ 72%]
+tests/test_extracao.py::test_confianca_por_campo_existe_e_esta_na_faixa[telegram/telegram_4.jsonl] PASSED [ 72%]
+tests/test_extracao.py::test_b3_mensagem_sem_valor_nao_inventa_nada[whatsapp/whatsapp_2.jsonl] PASSED [ 73%]
+tests/test_extracao.py::test_b3_mensagem_sem_valor_nao_inventa_nada[telegram/telegram_2.jsonl] PASSED [ 73%]
+tests/test_extracao.py::test_b1_escaneada_usa_ocr_simulado_rotulado_e_confianca_menor PASSED [ 73%]
+tests/test_extracao.py::test_b1_escaneada_recupera_o_zero_confundido_com_letra PASSED [ 74%]
+tests/test_extracao.py::test_b4_copia_identica_tem_o_mesmo_conteudo_do_original PASSED [ 74%]
+tests/test_extracao.py::test_b6_item_sem_valor_unitario_nao_inventa_preco PASSED [ 75%]
+tests/test_idempotencia.py::test_registrar_mesmo_documento_duas_vezes_devolve_dedupe_e_nao_cria_segunda_linha PASSED [ 75%]
+tests/test_idempotencia.py::test_mesmo_conteudo_mas_objeto_novo_continua_deduplicado PASSED [ 75%]
+tests/test_idempotencia.py::test_duplicata_b4_e_deduplicada_e_nao_cria_linha_nova PASSED [ 76%]
+tests/test_idempotencia.py::test_mensagem_reentregue_nao_cria_segundo_registro PASSED [ 76%]
+tests/test_idempotencia.py::test_pipeline_duas_rodadas_mantem_contagem_da_planilha PASSED [ 76%]
+tests/test_idempotencia.py::test_pipeline_segunda_rodada_nao_gera_linha_duplicada_nem_novo_pedido PASSED [ 77%]
+tests/test_idempotencia.py::test_ledger_tem_uma_linha_por_pedido_validado_e_csv_casa_com_xlsx PASSED [ 77%]
+tests/test_idempotencia.py::test_documento_e_pedido_ficam_ligados_na_trilha_de_auditoria PASSED [ 77%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[1.234,56-123456] PASSED [ 78%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[R$ 1.234,56-123456] PASSED [ 78%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[1234,56-123456] PASSED [ 78%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[R$ 1.234.567,89-123456789] PASSED [ 79%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[0,01-1] PASSED [ 79%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[12,5-1250] PASSED [ 79%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[1.234-123400] PASSED [ 80%]
+tests/test_normalizacao.py::test_moeda_br_vira_centavos_inteiros[1.234.567-123456700] PASSED [ 80%]
+tests/test_normalizacao.py::test_moeda_case_obrigatorio_do_contrato PASSED [ 80%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[None] PASSED [ 81%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[] PASSED [ 81%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[   ] PASSED [ 82%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[lixo] PASSED [ 82%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[R$] PASSED [ 82%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[1e3] PASSED [ 83%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[abc123def] PASSED [ 83%]
+tests/test_normalizacao.py::test_moeda_limite_nao_inventa_valor[..,,] PASSED [ 83%]
+tests/test_normalizacao.py::test_moeda_negativa_preserva_o_sinal PASSED  [ 84%]
+tests/test_normalizacao.py::test_formato_americano_e_sinalizado_como_suspeito PASSED [ 84%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[13/03/2026-2026-03-13-False] PASSED [ 84%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[13/3/2026-2026-03-13-False] PASSED [ 85%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[13-03-2026-2026-03-13-False] PASSED [ 85%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[13/03/26-2026-03-13-False] PASSED [ 85%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[2026-03-13-2026-03-13-False] PASSED [ 86%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[2026/03/13-2026-03-13-False] PASSED [ 86%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[13 de marco de 2026-2026-03-13-False] PASSED [ 86%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[13 de mar\xe7o de 2026-2026-03-13-False] PASSED [ 87%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[29/02/2024-2024-02-29-False] PASSED [ 87%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[03/04/2026-2026-04-03-True] PASSED [ 88%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[01/02/2026-2026-02-01-True] PASSED [ 88%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[12/12/2026-2026-12-12-True] PASSED [ 88%]
+tests/test_normalizacao.py::test_data_vira_iso_e_marca_ambiguidade[1/1/2026-2026-01-01-True] PASSED [ 89%]
+tests/test_normalizacao.py::test_dia_maior_que_12_nunca_e_ambigua PASSED [ 89%]
+tests/test_normalizacao.py::test_data_extenso_dia_menor_igual_12_tambem_e_inequivoca PASSED [ 89%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[None] PASSED [ 90%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[] PASSED [ 90%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[   ] PASSED [ 90%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[lixo] PASSED [ 91%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[31/02/2026] PASSED [ 91%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[00/13/2026] PASSED [ 91%]
+tests/test_normalizacao.py::test_data_limite_devolve_none_sem_inventar[2026-13-01] PASSED [ 92%]
+tests/test_normalizacao.py::test_cnpj_do_manifest_passa_na_validacao_de_dv PASSED [ 92%]
+tests/test_normalizacao.py::test_cnpj_com_dv_torto_e_rejeitado PASSED    [ 92%]
+tests/test_normalizacao.py::test_cnpj_repetido_e_invalido PASSED         [ 93%]
+tests/test_normalizacao.py::test_cnpj_limite_nao_inventa_digito[None] PASSED [ 93%]
+tests/test_normalizacao.py::test_cnpj_limite_nao_inventa_digito[] PASSED [ 94%]
+tests/test_normalizacao.py::test_cnpj_limite_nao_inventa_digito[   ] PASSED [ 94%]
+tests/test_normalizacao.py::test_cnpj_limite_nao_inventa_digito[lixo] PASSED [ 94%]
+tests/test_normalizacao.py::test_cnpj_limite_nao_inventa_digito[123] PASSED [ 95%]
+tests/test_normalizacao.py::test_cnpj_limite_nao_inventa_digito[7297338000023] PASSED [ 95%]
+tests/test_normalizacao.py::test_cnpj_com_dois_candidatos_e_ambiguidade_rejeitada PASSED [ 95%]
+tests/test_normalizacao.py::test_chave_do_manifest_passa_na_validacao_de_dv PASSED [ 96%]
+tests/test_normalizacao.py::test_chave_com_dv_torto_e_rejeitada PASSED   [ 96%]
+tests/test_normalizacao.py::test_chave_repetida_ou_curta_e_invalida PASSED [ 96%]
+tests/test_normalizacao.py::test_quantidade_separa_unidade_e_nao_usa_float PASSED [ 97%]
+tests/test_normalizacao.py::test_numero_pedido_preserva_identificador PASSED [ 97%]
+tests/test_normalizacao.py::test_detector_de_injecao_reconhece_instrucao_e_ignora_texto_normal PASSED [ 97%]
+tests/test_ponta_a_ponta.py::test_comando_unico_mock_gera_os_quatro_artefatos PASSED [ 98%]
+tests/test_ponta_a_ponta.py::test_conteudo_da_planilha_do_comando_unico PASSED [ 98%]
+tests/test_ponta_a_ponta.py::test_conteudo_da_trilha_e_da_fila_do_comando_unico PASSED [ 98%]
+tests/test_ponta_a_ponta.py::test_ocr_simulado_esta_rotulado_na_trilha_do_comando_unico PASSED [ 99%]
+tests/test_ponta_a_ponta.py::test_comando_unico_com_diretorios_isolados_publica_so_os_validados PASSED [ 99%]
+tests/test_ponta_a_ponta.py::test_duas_rodadas_do_comando_unico_sao_idempotentes PASSED [100%]
+
+================================== FAILURES ===================================
+_____ test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf] ______
+
+item = {'arquivo': 'pdf/FORN-ALFA_nf_1001_copia.pdf', 'caminho_repo': 'data/mocks/pdf/FORN-ALFA_nf_1001_copia.pdf', 'canal': 'pdf', 'tipo_documento': 'nf', ...}
+decisoes = {'pdf/FORN-ALFA_nf_1001.pdf': (Extracao(documento_id='doc_2a84297a0a9a7a2a', origem_canal='pdf', tipo_documento='nf', ...auto_aprovado', motivos=[], motor='parser', ocr_usado=False, template_versao='extrator-v1'), 'auto_aprovado', []), ...}
+
+    @CASOS
+    def test_cnpj_e_chave_contra_manifest(item, decisoes):
+        extracao, _status, _motivos = decisoes[item["arquivo"]]
+        assert extracao.emitente_cnpj == item["esperado"]["emitente_cnpj"]
+>       assert extracao.chave_acesso_nf == item["esperado"]["chave_acesso_nf"]
+E       AssertionError: assert '352603729733...0011968201250' == '352603729733...0011748910120'
+E         
+E         - 35260372973380000232550010000010011748910120
+E         ?                                    ^^ ^^
+E         + 35260372973380000232550010000010011968201250
+E         ?                                    ^^ ^   +
+
+tests\test_extracao.py:74: AssertionError
+_ test_nome_do_emitente_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] __
+
+item = {'arquivo': 'pdf/FORN-BETA_nf_2003_escaneada.pdf', 'caminho_repo': 'data/mocks/pdf/FORN-BETA_nf_2003_escaneada.pdf', 'canal': 'pdf', 'tipo_documento': 'nf', ...}
+decisoes = {'pdf/FORN-ALFA_nf_1001.pdf': (Extracao(documento_id='doc_2a84297a0a9a7a2a', origem_canal='pdf', tipo_documento='nf', ...auto_aprovado', motivos=[], motor='parser', ocr_usado=False, template_versao='extrator-v1'), 'auto_aprovado', []), ...}
+
+    @CASOS
+    def test_nome_do_emitente_contra_manifest(item, decisoes):
+        extracao, _status, _motivos = decisoes[item["arquivo"]]
+>       assert extracao.emitente_nome == item["esperado"]["emitente_nome"]
+E       AssertionError: assert 'BFTA SUPRIME...USTRIAIS LTDA' == 'BETA SUPRIME...USTRIAIS LTDA'
+E         
+E         - BETA SUPRIMENTOS INDUSTRIAIS LTDA
+E         ?  ^
+E         + BFTA SUPRIMENTOS INDUSTRIAIS LTDA
+E         ?  ^
+
+tests\test_extracao.py:80: AssertionError
+_______ test_itens_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf] _______
+
+item = {'arquivo': 'pdf/FORN-BETA_nf_2003_escaneada.pdf', 'caminho_repo': 'data/mocks/pdf/FORN-BETA_nf_2003_escaneada.pdf', 'canal': 'pdf', 'tipo_documento': 'nf', ...}
+decisoes = {'pdf/FORN-ALFA_nf_1001.pdf': (Extracao(documento_id='doc_2a84297a0a9a7a2a', origem_canal='pdf', tipo_documento='nf', ...auto_aprovado', motivos=[], motor='parser', ocr_usado=False, template_versao='extrator-v1'), 'auto_aprovado', []), ...}
+
+    @CASOS
+    def test_itens_contra_manifest(item, decisoes):
+        extracao, _status, _motivos = decisoes[item["arquivo"]]
+        esperados = item["esperado"]["itens"]
+        reais = extracao.itens
+        assert len(reais) == len(esperados), (
+            f"quantidade de itens diverge: real={len(reais)} manifest={len(esperados)}"
+        )
+        for indice, (real, esperado) in enumerate(zip(reais, esperados)):
+>           assert real.descricao == esperado["descricao"], f"item {indice} descricao"
+E           AssertionError: item 0 descricao
+E           assert 'CANFTA ESFEROGRAFICA AZUL' == 'CANETA ESFEROGRAFICA AZUL'
+E             
+E             - CANETA ESFEROGRAFICA AZUL
+E             ?    ^
+E             + CANFTA ESFEROGRAFICA AZUL
+E             ?    ^
+
+tests\test_extracao.py:107: AssertionError
+______ test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf] _______
+
+item = {'arquivo': 'pdf/FORN-ALFA_nf_1003.pdf', 'caminho_repo': 'data/mocks/pdf/FORN-ALFA_nf_1003.pdf', 'canal': 'pdf', 'tipo_documento': 'nf', ...}
+decisoes = {'pdf/FORN-ALFA_nf_1001.pdf': (Extracao(documento_id='doc_2a84297a0a9a7a2a', origem_canal='pdf', tipo_documento='nf', ...auto_aprovado', motivos=[], motor='parser', ocr_usado=False, template_versao='extrator-v1'), 'auto_aprovado', []), ...}
+
+    @pytest.mark.parametrize(
+        "item",
+        [i for i in ITENS if "status_esperado" in i["esperado"]],
+        ids=[i["arquivo"] for i in ITENS if "status_esperado" in i["esperado"]],
+    )
+    def test_status_e_motivos_contra_manifest(item, decisoes):
+        _extracao, status, motivos = decisoes[item["arquivo"]]
+        esperado = item["esperado"]
+        assert status == esperado["status_esperado"]
+>       assert sorted(motivos) == sorted(esperado["motivos_esperados"]), (
+            f"motivos divergem: real={motivos} manifest={esperado['motivos_esperados']}"
+        )
+E       AssertionError: motivos divergem: real=['divergencia_soma_itens'] manifest=['total_sem_detalhamento']
+E       assert ['divergencia_soma_itens'] == ['total_sem_detalhamento']
+E         
+E         At index 0 diff: 'divergencia_soma_itens' != 'total_sem_detalhamento'
+E         
+E         Full diff:
+E           [
+E         -     'total_sem_detalhamento',
+E         +     'divergencia_soma_itens',
+E           ]
+
+tests\test_extracao.py:128: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_extracao.py::test_cnpj_e_chave_contra_manifest[pdf/FORN-ALFA_nf_1001_copia.pdf]
+FAILED tests/test_extracao.py::test_nome_do_emitente_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf]
+FAILED tests/test_extracao.py::test_itens_contra_manifest[pdf/FORN-BETA_nf_2003_escaneada.pdf]
+FAILED tests/test_extracao.py::test_status_e_motivos_contra_manifest[pdf/FORN-ALFA_nf_1003.pdf]
+======================= 4 failed, 280 passed in 12.75s ========================

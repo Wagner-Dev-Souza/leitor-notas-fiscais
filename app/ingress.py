@@ -221,7 +221,10 @@ def _ocr_tesseract(caminho: Path) -> Optional[TextoExtraido]:
     return TextoExtraido(
         texto=texto,
         paginas=len(textos),
-        tem_camada_texto=bool(texto.strip()),
+        # O campo descreve o PDF, nao a origem do texto (contrato 4.3, emenda do PO):
+        # o arquivo que chega ao OCR e um PDF de imagem, sem camada de texto. Quem
+        # rotula a origem da leitura e `motor` (+ `ocr_usado` na Extracao).
+        tem_camada_texto=False,
         motor=MOTOR_TESSERACT,
         confianca_leitura=1.0,
         arquivo=str(caminho),
@@ -236,6 +239,12 @@ def ocr_pdf(caminho) -> TextoExtraido:
        `confianca_leitura` entre 0.55 e 0.75;
     3. sem sidecar e sem tesseract: texto vazio, `tem_camada_texto=False`,
        confianca 0.0 (o documento vira excecao `documento_ilegivel`).
+
+    `tem_camada_texto` descreve o **PDF**, nao a origem do texto (contrato 4.3, emenda
+    do PO): o caminho de OCR so e acionado justamente quando o PDF nao tem camada de
+    texto, entao o campo volta `False` nos tres ramos. Quem registra que a leitura veio
+    de OCR e `motor` (`ocr_simulado`/`tesseract`) e, na `Extracao`, `ocr_usado=True` -
+    o texto existe (`texto` nao e vazio), mas ele nao veio de camada de texto do PDF.
     """
     caminho_pdf = Path(caminho)
 
@@ -249,7 +258,7 @@ def ocr_pdf(caminho) -> TextoExtraido:
         return TextoExtraido(
             texto=texto,
             paginas=_numero_paginas(caminho_pdf),
-            tem_camada_texto=bool(texto.strip()),
+            tem_camada_texto=False,
             motor=MOTOR_OCR_SIMULADO,
             confianca_leitura=confianca_ocr_simulado(texto),
             arquivo=str(caminho_pdf),

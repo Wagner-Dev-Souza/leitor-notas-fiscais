@@ -35,6 +35,9 @@ Decisoes de projeto documentadas (para o PO revisar se quiser):
   portao de 0,90 - e o doc 02 4.3 diz que a data ambigua "nao bloqueia sozinho".
 - **Divergencia de itens > R$ 0,10 -> `revisao_humana`** (nao rejeicao): contrato secao 5,
   doc 02 4.2 e caso B2 mandam revisao humana obrigatoria, sem escrever o valor.
+- **Soma de itens que nao pode ser calculada -> `MOTIVO_TOTAL_SEM_DETALHAMENTO`** (emenda do
+  PO de 2026-09-19, contrato secao 5): item sem quantidade ou sem valor unitario, itens
+  ausentes ou parciais nao sao "divergencia" - divergencia exige diferenca calculada.
 - **Documento com injecao de prompt -> `revisao_humana`** com
   `MOTIVO_INJECAO_SUSPEITA`: o valor lido e preservado (nunca obedecer a instrucao do
   documento), mas documento hostil nao publica sozinho.
@@ -661,10 +664,12 @@ def decidir(extracao: Any) -> tuple[str, list[str]]:
     if isinstance(bruto_emissao, str) and normaliza.normalizar_data(bruto_emissao)[1]:
         add(contratos.MOTIVO_DATA_AMBIGUA)
 
-    # 6) reconciliacao aritmetica dos itens (4.2)
-    if ctx["presentes"]["itens"] and not ctx["itens_completos"]:
-        bloqueios.append(contratos.MOTIVO_DIVERGENCIA_ITENS)   # itens parciais
-    elif ctx["itens_completos"]:
+    # 6) reconciliacao aritmetica dos itens (4.2 + emenda do PO de 2026-09-19)
+    # `MOTIVO_DIVERGENCIA_ITENS` exige diferenca **calculada**. Quando a soma nao pode
+    # ser calculada (item sem quantidade ou sem valor unitario, itens ausentes ou
+    # parciais), o motivo e `MOTIVO_TOTAL_SEM_DETALHAMENTO` - nao se chama "divergencia"
+    # aquilo que nao foi medido (dois codigos para o mesmo fato quebram a triagem).
+    if ctx["itens_completos"]:
         dif = int(ctx["dif"])
         if dif <= contratos.TOLERANCIA_ITENS_CASA_CENTAVOS:
             pass

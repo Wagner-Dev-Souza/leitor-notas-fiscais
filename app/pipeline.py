@@ -17,12 +17,34 @@ ao status devolvido.
 Marcacao honesta: quando o documento entra pelo caminho de OCR simulado, o motor
 (`ocr_simulado`) vai para a trilha de auditoria, para o resumo e para o painel. Em
 nenhum ponto a saida simulada e apresentada como OCR real.
+
+Politica de cada arquivo de saida (o que pode ser regenerado e o que e registro)
+--------------------------------------------------------------------------------
+A fonte da verdade e o SQLite (`pipeline.db`), que este modulo **nunca** trunca.
+
+* `auditoria.jsonl` - **TRILHA**. Append puro entre rodadas, nunca truncada: e o registro
+  de "o que entrou e quando". Apagar/truncar aqui destruiria o requisito de aceite.
+* `auditoria_rodada_<AAAAMMDD-HHMMSS>.jsonl` - **TRILHA da rodada**. Mesmas linhas
+  (cada uma com `rodada_id`), recortadas por rodada. Cobre a necessidade original de ler
+  uma rodada isolada sem misturar com as anteriores.
+* `controle_financeiro.xlsx/.csv` - **DESTINO**, regenerado a partir do banco a cada
+  rodada (`escrever_ledger` usa `row_id_planilha`, entao nao duplica linha). Reescrever e
+  aceitavel: o dado continua em `pedidos`/`itens_pedido`.
+* `fila_excecoes.json` - **VISAO** da tabela `fila_excecoes`, reexportada a cada rodada.
+  Aceitavel: a pendencia aberta vive no banco; o arquivo e a foto atual dela.
+* `painel.html` - **VISAO** de acompanhamento, regerada a cada rodada. Nao e registro.
+* `resumo.json` - retrato da **ultima** rodada (sobrescrito). O historico por rodada fica
+  na trilha de auditoria; este arquivo e conveniencia de leitura, nao evidencia.
+
+Qualquer arquivo novo de saida deve entrar numa dessas duas categorias: TRILHA (append,
+nunca apagada) ou VISAO/DESTINO (regeneravel a partir do banco).
 """
 
 from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -56,10 +78,16 @@ NOMES_ARQUIVO = {
     "xlsx": "controle_financeiro.xlsx",
     "csv": "controle_financeiro.csv",
     "auditoria": "auditoria.jsonl",
+    "auditoria_rodada": "auditoria_rodada_{rodada_id}.jsonl",
     "fila_excecoes": "fila_excecoes.json",
     "painel": "painel.html",
     "resumo": "resumo.json",
 }
+
+# Formato do identificador de rodada usado no nome do arquivo por rodada e no campo
+# `rodada_id` de cada linha da trilha. Rodada local (fuso da maquina, como o operador
+# ve no relogio); a trilha tambem carrega `ts` ISO por linha.
+FORMATO_RODADA_ID = "%Y%m%d-%H%M%S"
 
 STATUS_DOC_POR_VALIDACAO = {
     STATUS_AUTO_APROVADO: STATUS_DOC_VALIDADO,
@@ -106,10 +134,16 @@ def _registro_auditoria(
     acao: str,
     extracao: Any = None,
     motivos: Optional[list[str]] = None,
+    rodada_id: str = "",
 ) -> dict:
-    """Uma linha da trilha de auditoria (campos minimos da secao 4.6 do contrato)."""
+    """Uma linha da trilha de auditoria (campos minimos da secao 4.6 do contrato).
+
+    `rodada_id` identifica a rodada que gravou a linha: a trilha cumulativa continua
+    analisavel por rodada sem precisar de arquivo separado.
+    """
     return {
         "ts": agora_iso(),
+        "rodada_id": rodada_id,
         "artefato": str(artefato.caminho),
         "canal": artefato.canal,
         "hash_conteudo": artefato.hash_conteudo,
@@ -128,6 +162,28 @@ def _registro_auditoria(
     }
 
 
+# --------------------------------------------------------------------- trilha
+
+
+def _gravar_auditoria(caminho_cumulativo: Path, caminho_rodada: Path, registro: dict) -> None:
+    """Grava a MESMA linha na trilha cumulativa e na trilha da rodada (append).
+
+    Append nos dois: o arquivo cumulativo nunca e truncado (requisito de aceite) e o
+    arquivo da rodada nasce na primeira linha da rodada. Se a rodada morrer no meio, o
+    que ja aconteceu continua gravado nos dois lugares.
+    """
+    persistencia.registrar_auditoria(str(caminho_cumulativo), registro)
+    persistencia.registrar_auditoria(str(caminho_rodada), registro)
+
+
+def _contar_linhas(caminho: Path) -> int:
+    """Linhas nao vazias de um arquivo de trilha (0 quando ainda nao existe)."""
+    if not caminho.exists():
+        return 0
+    with caminho.open("r", encoding="utf-8") as fh:
+        return sum(1 for linha in fh if linha.strip())
+
+
 # --------------------------------------------------------------------- rodada
 
 
@@ -138,6 +194,8 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
     este modulo nunca faz e inventar resultado para parecer que rodou.
     """
     inicio = time.perf_counter()
+    rodada_id = datetime.now().strftime(FORMATO_RODADA_ID)
+    rodada_inicio_iso = agora_iso()
 
     raiz_saida = Path(out_dir)
     raiz_saida.mkdir(parents=True, exist_ok=True)
@@ -148,13 +206,16 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
     caminhos = {
         chave: raiz_saida / nome
         for chave, nome in NOMES_ARQUIVO.items()
-        if chave != "resumo"
+        if chave not in ("resumo", "auditoria_rodada")
     }
     caminho_resumo = raiz_saida / NOMES_ARQUIVO["resumo"]
+    caminho_auditoria_rodada = raiz_saida / NOMES_ARQUIVO["auditoria_rodada"].format(
+        rodada_id=rodada_id
+    )
 
-    # trilha de auditoria e um append por rodada: comeca limpa para nao misturar rodadas
-    if caminhos["auditoria"].exists():
-        caminhos["auditoria"].unlink()
+    # A trilha cumulativa NAO e truncada: `registrar_auditoria` faz append e a rodada
+    # atual apenas acrescenta linhas (com `rodada_id`). O recorte por rodada vive em
+    # `auditoria_rodada_<rodada_id>.jsonl`. Ver a politica de arquivos no docstring.
 
     artefatos = ingress.ingerir(inbox)
     conn = persistencia.abrir_db(str(caminho_db))
@@ -173,6 +234,7 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
     detalhes: list[dict] = []
     pedidos_vistos: set[str] = set()
     avisos: list[str] = []
+    auditoria_linhas_rodada = 0
 
     try:
         for artefato in artefatos:
@@ -186,10 +248,14 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
 
             if dedupe:
                 contadores["deduplicados"] += 1
-                persistencia.registrar_auditoria(
-                    str(caminhos["auditoria"]),
-                    _registro_auditoria(artefato, documento_id, None, "deduplicado"),
+                _gravar_auditoria(
+                    caminhos["auditoria"],
+                    caminho_auditoria_rodada,
+                    _registro_auditoria(
+                        artefato, documento_id, None, "deduplicado", rodada_id=rodada_id
+                    ),
                 )
+                auditoria_linhas_rodada += 1
                 detalhes.append(
                     {
                         "artefato": str(artefato.caminho),
@@ -248,10 +314,14 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
                 conn, documento_id, status=STATUS_DOC_POR_VALIDACAO.get(status, STATUS_DOC_EXTRAIDO)
             )
 
-            persistencia.registrar_auditoria(
-                str(caminhos["auditoria"]),
-                _registro_auditoria(artefato, documento_id, pedido_id, acao, extracao, motivos),
+            _gravar_auditoria(
+                caminhos["auditoria"],
+                caminho_auditoria_rodada,
+                _registro_auditoria(
+                    artefato, documento_id, pedido_id, acao, extracao, motivos, rodada_id=rodada_id
+                ),
             )
+            auditoria_linhas_rodada += 1
 
             if status != STATUS_AUTO_APROVADO:
                 for motivo in motivos or [MOTIVO_BAIXA_CONFIANCA]:
@@ -306,17 +376,23 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
 
     for chave in ("xlsx", "csv", "auditoria"):
         arquivos_gerados[chave] = str(caminhos[chave])
+    arquivos_gerados["auditoria_rodada"] = str(caminho_auditoria_rodada)
     arquivos_gerados["db"] = str(caminho_db)
     arquivos_gerados["resumo"] = str(caminho_resumo)
 
+    auditoria_linhas_total = _contar_linhas(caminhos["auditoria"])
     ocr_simulado = por_motor.get(MOTOR_OCR_SIMULADO, 0)
     resumo = {
         "ts": agora_iso(),
+        "rodada_id": rodada_id,
+        "rodada_inicio": rodada_inicio_iso,
         "inbox": str(inbox),
         "out_dir": str(raiz_saida),
         "db": str(caminho_db),
         **contadores,
         "linhas_planilha": linhas_planilha,
+        "auditoria_linhas_rodada": auditoria_linhas_rodada,
+        "auditoria_linhas_total": auditoria_linhas_total,
         "por_motor": por_motor,
         "ocr_simulado_artefatos": ocr_simulado,
         "ocr_real_artefatos": por_motor.get(MOTOR_TESSERACT, 0),

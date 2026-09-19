@@ -42,6 +42,7 @@ def _imprimir_resumo(resumo: dict, verbose: bool) -> None:
     imprimir(f"Inbox    : {_legivel(resumo['inbox'])}")
     imprimir(f"Saida    : {_legivel(resumo['out_dir'])}")
     imprimir(f"Banco    : {_legivel(resumo['db'])}")
+    imprimir(f"Rodada   : {resumo['rodada_id']}")
     imprimir(_linha())
     imprimir(
         f"Artefatos ingeridos : {resumo['artefatos']} "
@@ -56,6 +57,10 @@ def _imprimir_resumo(resumo: dict, verbose: bool) -> None:
     motores = " | ".join(f"{motor} {qtd}" for motor, qtd in sorted(resumo["por_motor"].items()))
     imprimir(f"Leitura por motor   : {motores or '-'}")
     imprimir(f"OCR                 : {resumo['aviso_ocr']}")
+    imprimir(
+        f"Auditoria           : {resumo['auditoria_linhas_rodada']} linha(s) nesta rodada"
+        f" | trilha cumulativa: {resumo['auditoria_linhas_total']} linha(s)"
+    )
     if resumo["motivos"]:
         imprimir(_linha())
         imprimir("Motivos na fila de excecoes:")
@@ -63,10 +68,19 @@ def _imprimir_resumo(resumo: dict, verbose: bool) -> None:
             imprimir(f"   {motivo:34s} {qtd}")
     imprimir(_linha())
     imprimir("Arquivos gerados:")
-    for chave in ("xlsx", "csv", "auditoria", "fila_excecoes", "painel", "resumo", "db"):
+    for chave in (
+        "xlsx",
+        "csv",
+        "auditoria",
+        "auditoria_rodada",
+        "fila_excecoes",
+        "painel",
+        "resumo",
+        "db",
+    ):
         caminho = resumo["arquivos"].get(chave)
         if caminho:
-            imprimir(f"   {chave:14s} {_legivel(caminho)}")
+            imprimir(f"   {chave:17s} {_legivel(caminho)}")
     if resumo.get("avisos"):
         imprimir(_linha())
         for aviso in resumo["avisos"]:
