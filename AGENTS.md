@@ -14,6 +14,15 @@ Cliente (Wagner, via Loghanth) **não envia material**. Nada de depender de arqu
 - Código-fonte, scripts geradores de mock, testes, README e docs.
 - Commits **locais**, com mensagem clara dizendo o que mudou. **Sem push** — não existe remoto configurado para este projeto.
 
+## Requisito de entrega: configuração simples e operação em produção
+
+O produto tem de ser **simples de rodar** por quem não conhece o projeto:
+
+1. **Arquivo de configuração no formato `.env`** onde se coloca o **número/token REAL** de WhatsApp e de Telegram para o agente rodar de verdade. Versionar apenas um **`.env.example`** com as chaves vazias/placeholder e comentário explicando cada uma. O `.env` real **nunca** entra no git (é segredo).
+2. **Nenhum segredo no código** e nenhum segredo em arquivo versionado. Sem a chave configurada, a aplicação deve **avisar com mensagem clara** qual variável falta — e não quebrar de forma obscura.
+3. **README documentando a implementação em produção**: como instalar dependências, como configurar (quais chaves/número, onde colocar), como rodar o produto em produção, como acompanhar (logs, onde a planilha de saída é gravada), como agendar a execução e o que fazer quando uma extração falha.
+4. O **modo mock continua sendo o padrão** para teste e demonstração; o modo real é ativado pela configuração do `.env`.
+
 ## Antes de dizer "pronto"
 - Rode o pipeline de ponta a ponta com os mocks e **mostre a saída real** (a planilha gerada e os testes passando). Resultado sem execução real não conta.
 - Um comando único deve reproduzir tudo (documentado no README).
