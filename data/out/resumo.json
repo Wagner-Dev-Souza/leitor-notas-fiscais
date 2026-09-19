@@ -1,7 +1,7 @@
 {
-  "ts": "2026-09-19T16:35:09+00:00",
-  "rodada_id": "20260919-133508",
-  "rodada_inicio": "2026-09-19T16:35:08+00:00",
+  "ts": "2026-09-19T16:35:45+00:00",
+  "rodada_id": "20260919-133544",
+  "rodada_inicio": "2026-09-19T16:35:44+00:00",
   "inbox": "<local>                                                                  \\data\\mocks",
   "out_dir": "<local>                                                                  \\data\\out",
   "db": "<local>                                                                  \\data\\out\\pipeline.db",
@@ -14,7 +14,7 @@
   "deduplicados": 20,
   "linhas_planilha": 7,
   "auditoria_linhas_rodada": 20,
-  "auditoria_linhas_total": 100,
+  "auditoria_linhas_total": 200,
   "por_motor": {
     "pdfplumber": 11,
     "ocr_simulado": 1,
@@ -30,10 +30,10 @@
     "xlsx": "<local>                                                                  \\data\\out\\controle_financeiro.xlsx",
     "csv": "<local>                                                                  \\data\\out\\controle_financeiro.csv",
     "auditoria": "<local>                                                                  \\data\\out\\auditoria.jsonl",
-    "auditoria_rodada": "<local>                                                                  \\data\\out\\auditoria_rodada_20260919-133508.jsonl",
+    "auditoria_rodada": "<local>                                                                  \\data\\out\\auditoria_rodada_20260919-133544.jsonl",
     "db": "<local>                                                                  \\data\\out\\pipeline.db",
     "resumo": "<local>                                                                  \\data\\out\\resumo.json"
   },
-  "duracao_s": 0.712,
+  "duracao_s": 0.732,
   "avisos": []
 }
