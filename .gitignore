@@ -1,4 +1,17 @@
+# Ambiente local e lixo de ferramentas - nunca entram no git.
 node_modules/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
 *.log
 .env
+
+# Sistema
 .DS_Store
+
+# ATENCAO: `data/mocks/` e `data/out/` NAO sao ignorados de proposito.
+#   data/mocks/  -> material sintetico da entrega (o cliente nao envia nada;
+#                   e este material que prova o funcionamento). Recriavel por
+#                   `tools/gerar_mocks.py`, mas entra no git como evidencia.
+#   data/out/    -> planilha, trilha de auditoria e fila de excecoes = evidencia.

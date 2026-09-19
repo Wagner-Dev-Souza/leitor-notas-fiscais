@@ -1,0 +1,22 @@
+# Dependencias do pipeline de leitura de notas fiscais/pedidos (squad-pecados).
+# Versoes = exatamente as instaladas no .venv do projeto (CPython 3.12.14).
+#
+# Instalar:
+#   uv pip install --python .venv/Scripts/python.exe -r requirements.txt
+#
+# Nao crie outro venv: o interpretador do projeto e `.venv/Scripts/python.exe`.
+
+pypdf==6.19.0
+pdfplumber==0.11.10
+reportlab==5.0.1
+openpyxl==3.1.5
+pytest==9.1.1
+pillow==12.3.0
+
+# --- OCR real: OPCIONAL, NAO instalado ---------------------------------------
+# Nao existe binario Tesseract nesta maquina, entao o caminho de OCR do projeto
+# e o motor SIMULADO (sidecar `<arquivo>.ocr.txt`, rotulado como simulado na
+# trilha de auditoria). Se um dia o Tesseract estiver disponivel no PATH,
+# descomente a linha abaixo - ela NAO esta fixada porque nunca foi instalada:
+#
+# pytesseract
