@@ -15,3 +15,14 @@ __pycache__/
 #                   e este material que prova o funcionamento). Recriavel por
 #                   `tools/gerar_mocks.py`, mas entra no git como evidencia.
 #   data/out/    -> planilha, trilha de auditoria e fila de excecoes = evidencia.
+
+# --- material de execucao REAL: dado de cliente, nunca versionar -------------------
+# A coleta real grava aqui (envelope do Telegram, webhook do WhatsApp). E dado de
+# operacao, nao material sintetico do repositorio: um `git add` distraido levaria
+# mensagem real de cliente para dentro do git.
+data/inbox/
+data/inbox_webhook/
+
+# Estado da coleta (offset do Telegram - confirmacao de leitura do getUpdates).
+# E estado de execucao, nao evidencia de rodada: nao entra no git.
+data/out/telegram_offset.json

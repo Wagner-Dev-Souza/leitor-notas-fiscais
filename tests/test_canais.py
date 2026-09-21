@@ -854,3 +854,57 @@ def test_modo_real_coleta_e_roda_o_pipeline_com_stub_local(tmp_path):
     texto_log = log[0].read_text(encoding="utf-8")
     assert "rodada iniciada" in texto_log and "modo=real" in texto_log
     assert TELEGRAM_TOKEN not in texto_log, "token vazou no arquivo de log"
+
+def test_offset_da_coleta_evita_rebaixar_o_historico(tmp_path):
+    """A rodada seguinte manda `offset = maior update_id + 1` em vez de re-baixar tudo.
+
+    O `getUpdates` devolve a janela inteira enquanto ninguem confirma leitura. A
+    deduplicacao do pipeline esconde a repeticao (o dado nunca sai duplicado), mas o
+    custo cresce com o historico do grupo. O estado mora no OUT_DIR.
+    """
+    cfg = config_de_teste(tmp_path)
+    transporte = TransporteFalso(
+        resposta={
+            "ok": True,
+            "result": [
+                update_telegram(700),
+                update_telegram(701),
+                # update de OUTRO chat: nao vira envelope, mas tambem e confirmado -
+                # o Telegram nao pode devolver de novo o que ja foi visto.
+                update_telegram(702, chat_id="-1009999999999"),
+            ],
+        }
+    )
+
+    primeira = canais.coletar_telegram(cfg, transporte=transporte)
+    assert primeira.mensagens == 2, "o filtro por chat_id devia descartar o terceiro update"
+    assert transporte.chamadas[0]["params"] is None, "primeira rodada nao tem offset para mandar"
+    assert canais.ler_offset_telegram(cfg) == 703, "confirmar leitura = maior update_id + 1"
+
+    segunda = canais.coletar_telegram(cfg, transporte=TransporteFalso(resposta={"ok": True, "result": []}))
+    assert segunda.mensagens == 0
+    assert segunda.arquivos == ()
+    assert canais.ler_offset_telegram(cfg) == 703, "fila vazia nao pode mexer no estado"
+
+
+def test_offset_da_coleta_vai_na_requisicao_da_segunda_rodada(tmp_path):
+    cfg = config_de_teste(tmp_path)
+    canais.coletar_telegram(cfg, transporte=TransporteFalso(resposta={"ok": True, "result": [update_telegram(900)]}))
+
+    transporte = TransporteFalso(resposta={"ok": True, "result": []})
+    canais.coletar_telegram(cfg, transporte=transporte)
+    assert transporte.chamadas[0]["params"] == {"offset": 901}
+
+
+def test_offset_da_coleta_sobrevive_a_estado_corrompido(tmp_path):
+    """Estado ilegivel nao pode derrubar a coleta: volta a tratar como primeira rodada."""
+    cfg = config_de_teste(tmp_path)
+    caminho = canais.caminho_offset_telegram(cfg)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text("{isso nao e json", encoding="utf-8")
+
+    assert canais.ler_offset_telegram(cfg) is None
+    transporte = TransporteFalso(resposta={"ok": True, "result": [update_telegram(950)]})
+    resultado = canais.coletar_telegram(cfg, transporte=transporte)
+    assert resultado.mensagens == 1
+    assert transporte.chamadas[0]["params"] is None

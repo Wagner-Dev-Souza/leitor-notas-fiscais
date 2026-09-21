@@ -295,6 +295,11 @@ def coletar_telegram(
     pasta = Path(destino) if destino is not None else (Path(cfg.inbox_dir) / CANAL_TELEGRAM)
     transporte = transporte or transporte_urllib()
     url = f"{api_base}/bot{token}/getUpdates"
+
+    # offset: o que veio por parametro manda; senao o estado da ultima coleta. Sem estado
+    # nenhum (primeira rodada) fica None e o Telegram devolve o que estiver pendente.
+    if offset is None:
+        offset = ler_offset_telegram(cfg)
     params: dict[str, Any] = {}
     if offset is not None:
         params["offset"] = int(offset)
@@ -316,8 +321,13 @@ def coletar_telegram(
             f"e TELEGRAM_CHAT_ID no .env."
         )
 
+    updates = resposta.get("result") or []
+    # Confirma a leitura ANTES de filtrar: o update de outro chat tambem foi visto.
+    if updates:
+        gravar_offset_telegram(cfg, updates)
+
     envelopes = envelopes_telegram(
-        resposta.get("result") or [], getattr(telegram, "chat_id", None) or None
+        updates, getattr(telegram, "chat_id", None) or None
     )
     if not envelopes:
         return ResultadoColeta(
@@ -328,7 +338,7 @@ def coletar_telegram(
             detalhe=(
                 "telegram: getUpdates sem update novo (fila vazia"
                 f"{' ou nenhum update do chat configurado' if getattr(telegram, 'chat_id', '') else ''})"
-                " - nada a gravar, e nao e erro"
+                f" - nada a gravar, e nao e erro (offset atual: {offset})"
             ),
         )
 
@@ -338,8 +348,62 @@ def coletar_telegram(
         destino=pasta,
         arquivos=(caminho,),
         mensagens=len(envelopes),
-        detalhe=f"telegram: {len(envelopes)} update(s) gravado(s) em {caminho.name}",
+        detalhe=(
+            f"telegram: {len(envelopes)} update(s) gravado(s) em {caminho.name} "
+            f"| offset confirmado ate {ler_offset_telegram(cfg)}"
+        ),
     )
+
+
+# --- estado da coleta: offset do Telegram -------------------------------------
+#
+# O `getUpdates` devolve TODA a janela de updates pendentes enquanto ninguem passa
+# `offset`; passar `offset = ultimo_update_id + 1` e a confirmacao de leitura do Telegram.
+# Sem guardar isso, cada rodada re-baixa o historico inteiro: a deduplicacao do pipeline
+# segura a duplicata (por isso o dado nunca sai errado), mas o custo cresce com o tamanho
+# do historico. O estado mora no OUT_DIR, junto da saida e do banco.
+
+ARQUIVO_OFFSET_TELEGRAM = "telegram_offset.json"
+
+
+def caminho_offset_telegram(cfg: Any) -> Path:
+    return Path(cfg.out_dir) / ARQUIVO_OFFSET_TELEGRAM
+
+
+def ler_offset_telegram(cfg: Any) -> Optional[int]:
+    """Proximo offset a enviar, ou None se nunca houve coleta (primeira rodada)."""
+    caminho = caminho_offset_telegram(cfg)
+    if not caminho.is_file():
+        return None
+    try:
+        return int(json.loads(caminho.read_text(encoding="utf-8"))["proximo_offset"])
+    except (OSError, ValueError, KeyError, TypeError):
+        # estado ilegivel nao pode derrubar a coleta: trata como primeira rodada
+        return None
+
+
+def gravar_offset_telegram(cfg: Any, updates: list[dict]) -> Optional[int]:
+    """Confirma a leitura gravando `max(update_id) + 1`.
+
+    Confirma TODOS os updates recebidos, inclusive os de outro chat (que o filtro local
+    descarta): eles foram vistos pelo bot e nao podem voltar na proxima rodada.
+    """
+    # update malformado (o Telegram pode devolver qualquer coisa) nao pode derrubar
+    # a coleta: so dict com update_id inteiro entra na conta.
+    identificadores = [
+        update.get("update_id") for update in updates
+        if isinstance(update, dict) and isinstance(update.get("update_id"), int)
+    ]
+    if not identificadores:
+        return ler_offset_telegram(cfg)
+    proximo = max(identificadores) + 1
+    caminho = caminho_offset_telegram(cfg)
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    caminho.write_text(
+        json.dumps({"proximo_offset": proximo, "confirmado_em": _agora_marca()}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return proximo
 
 
 # ------------------------------------------------------------------ WhatsApp (webhook local)
