@@ -304,17 +304,17 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-425 passed in 76.93s (0:01:16)
+428 passed in 78.30s (0:01:16)
 ```
 
-**São 425 testes, e todos passam.** Distribuição por arquivo:
+**São 428 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
 | `tests/test_extracao.py` | 198 | Extração contra o `manifest.json`, campo a campo: número do pedido, CNPJ, chave de acesso, datas, valor total, valor unitário e descrição de cada item, mais o status e os motivos esperados de cada documento. |
 | `tests/test_config.py` | 70 | Leitura e validação do `.env`: sintaxe tolerada, variável obrigatória ausente, catálogo, mensagem de erro por variável, mascaramento do segredo. |
 | `tests/test_normalizacao.py` | 57 | CNPJ e chave de 44 dígitos com dígito verificador válido (passam) e torto (rejeitados); `R$ 1.234,56` -> `123456` sempre inteiro; datas em vários formatos -> ISO, com marcação de ambiguidade; entradas vazias, lixo e `None`. |
-| `tests/test_canais.py` | 28 | Coleta dos canais contra stub HTTP local: envelope do Telegram gravado, filtro por chat, falha de credencial virando erro claro sem imprimir o token, leitura do webhook do WhatsApp. |
+| `tests/test_canais.py` | 33 | Coleta dos canais contra stub HTTP local: envelope do Telegram gravado, filtro por chat, falha de credencial virando erro claro sem imprimir o token, leitura do webhook do WhatsApp. |
 | `tests/test_producao.py` | 19 | Os itens de operação: `.env.example` em sincronia com o catálogo, `.env` fora do git, modo mock sem credencial, modo real sem variável obrigatória, varredura de segredo. |
 | `tests/test_adversarial.py` | 15 | Injeção de prompt (o documento manda gravar R$ 99.999,00 e o valor real é preservado), divergência de soma dos itens, documento ilegível, CNPJ e chave com DV inválido. |
 | `tests/test_idempotencia.py` | 8 | O mesmo documento registrado duas vezes -> deduplicado, sem segunda linha; rodar o pipeline 2x mantém a contagem da planilha; cópia byte a byte (B4) deduplicada. |
@@ -395,6 +395,25 @@ quais são as credenciais dos canais.
 **A regra que não se quebra:** o `.env` real contém **segredo** (tokens de acesso). Ele **nunca**
 vai para o git - já está no `.gitignore`. O que se versiona é o **`.env.example`**, com as chaves
 vazias, que é a lista oficial das variáveis.
+
+> **Onde o `.env` mora na prática.** No **worktree da entrega** (esta cópia de trabalho do
+> repositório) o `.env` **não pode existir**: um teste do próprio projeto
+> (`tests/test_producao.py`) falha se encontrar um - e o motivo é bom, segredo não mora dentro do
+> repositório. A configuração real fica **fora** da árvore do repositório e é apontada com `--env`:
+>
+> ```bash
+> .venv/Scripts/python.exe -m app.run --real --env "C:/caminho/fora/do/repo/.env"
+> ```
+>
+> Na cópia do cliente - que não é worktree de desenvolvimento - o `.env` pode ficar na raiz do
+> projeto normalmente, como descrito acima. `--check-config` funciona nos dois modos.
+
+**A coleta não re-baixa o histórico a cada rodada.** O `getUpdates` do Telegram devolve a janela
+inteira de updates enquanto ninguém confirma a leitura. A coleta grava `telegram_offset.json` no
+diretório de saída com o próximo offset (`maior update_id + 1`) e o envia na execução seguinte - é
+a confirmação de leitura do Telegram. Sem isso, cada rodada reprocessava toda a janela de 24h: a
+deduplicação sempre impediu linha repetida na planilha, mas o custo crescia com o histórico do
+grupo. Se o arquivo for apagado, a rodada seguinte volta a ler o que estiver pendente.
 
 > **O `.env.example` está no repositório e é a lista oficial das variáveis.** Ele é **gerado** a
 > partir do catálogo do código (`app/config.py` → `VARIAVEIS`, 16 entradas) por
@@ -1026,7 +1045,7 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (425 testes) + RELATORIO-F5.md, test_imagem.py,
+tests/        suíte pytest (428 testes) + RELATORIO-F5.md, test_imagem.py,
               test_multipagina.py, test_rajada.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
