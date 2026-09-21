@@ -4,7 +4,7 @@
 Cliente (projeto pequeno) quer agentes de IA que: (a) leiam PDFs de notas fiscais e pedidos e mensagens recebidas via WhatsApp e Telegram; (b) extraiam numero do pedido, valores, datas e itens; (c) insiram automaticamente numa planilha de controle financeiro da empresa. Precisa ser preciso na extracao e robusto a variacao de formatos de documento e de mensagem. Objetivo: reduzir entrada manual de dados.
 
 ## Target
-Escrever UM arquivo: <local>
+Escrever UM arquivo: <worktree>/docs/01-arquitetura.md
 
 ## Change (conteudo obrigatorio, nesta ordem)
 1. Visao de componentes (ingestao PDF, ingestao WhatsApp, ingestao Telegram, fila, extrator IA, validador, escritor da planilha, banco) com responsabilidade de cada um.

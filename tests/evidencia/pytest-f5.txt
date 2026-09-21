@@ -1,7 +1,7 @@
 ============================= test session starts =============================
-platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- <local>                                                            \.venv\Scripts\python.exe
+platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- <worktree>\.venv\Scripts\python.exe
 cachedir: .pytest_cache
-rootdir: <local>                                                            
+rootdir: <worktree>
 collecting ... collected 284 items
 
 tests/test_adversarial.py::test_b5_injecao_no_pdf_preserva_o_valor_real PASSED [  0%]

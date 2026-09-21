@@ -2,7 +2,7 @@
 # Cria as 6 tarefas da fase de execucao no Run ja criado.
 set -u
 export PATH="$LOCALAPPDATA/Programs/orca/resources/bin:$PATH"
-cd "<local>" || exit 1
+cd "<worktree>" || exit 1
 
 COORD="term_1d23b48f-7417-485e-ad32-dd2c9e385b7d"
 OUT="docs/execucao/_ids"

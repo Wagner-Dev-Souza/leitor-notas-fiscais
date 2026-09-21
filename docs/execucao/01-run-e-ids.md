@@ -8,7 +8,7 @@ gravados pelo proprio Orca em `docs/execucao/_ids/`.
 - **run_id:** `run_50dff8b29067`
 - **criado em:** 2026-09-19T15:40:19Z (UTC)
 - **coordenador (PO):** `term_1d23b48f-7417-485e-ad32-dd2c9e385b7d` (painel `soberba`)
-- **worktree:** `<local>`
+- **worktree:** `<worktree>`
 
 O PO coordenou de fora de um painel Orca, entao toda mutacao de orquestracao usou
 `--from <handle>` explicito, e o Run ficou endereçado ao painel `soberba`.

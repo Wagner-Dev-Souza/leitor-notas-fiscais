@@ -1,7 +1,7 @@
 # TASK F6 - README e relatorio final da entrega
 
 ## Target
-Worktree `<local>`.
+Worktree `<worktree>`.
 Arquivos: `README.md`, `relatorios/`.
 
 ## Pre-requisito

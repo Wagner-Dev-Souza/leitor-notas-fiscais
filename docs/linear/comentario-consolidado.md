@@ -1,6 +1,6 @@
 ## Consolidado do PO — fase de escopo e desenho
 
-Todos os pareceres desta fase saíram de execução real no worktree `squad-pecados` (branch `squad-pecados`, caminho `<local>`). Run de orquestração: `run_cd1b9874c508`.
+Todos os pareceres desta fase saíram de execução real no worktree `squad-pecados` (branch `squad-pecados`, caminho `<worktree>`). Run de orquestração: `run_cd1b9874c508`.
 
 ### Artefatos produzidos (2.100+ linhas)
 

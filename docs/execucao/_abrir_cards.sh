@@ -2,7 +2,7 @@
 # PO abre a fase no Linear (cards -> In Progress) e envia o adendo de card aos devs da onda 1.
 set -u
 export PATH="$LOCALAPPDATA/Programs/orca/resources/bin:$PATH"
-cd "<local>" || exit 1
+cd "<worktree>" || exit 1
 
 COORD="term_1d23b48f-7417-485e-ad32-dd2c9e385b7d"
 

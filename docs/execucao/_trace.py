@@ -32,7 +32,7 @@ linhas = [
     f"- **run_id:** `{RUN}`",
     f"- **criado em:** {criado} (UTC)",
     "- **coordenador (PO):** `term_1d23b48f-7417-485e-ad32-dd2c9e385b7d` (painel `soberba`)",
-    "- **worktree:** `<local>`",
+    "- **worktree:** `<worktree>`",
     "",
     "O PO coordenou de fora de um painel Orca, entao toda mutacao de orquestracao usou",
     "`--from <handle>` explicito, e o Run ficou endereçado ao painel `soberba`.",

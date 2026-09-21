@@ -1,7 +1,7 @@
 # TASK F4 - Revisao humana: fila de excecoes e painel de acompanhamento
 
 ## Target
-Worktree `<local>`.
+Worktree `<worktree>`.
 Arquivo: `app/revisao.py`.
 
 ## Contexto obrigatorio (leia ANTES de escrever codigo)

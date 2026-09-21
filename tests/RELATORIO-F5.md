@@ -1,7 +1,7 @@
 # F5 - Relatorio de testes, casos adversariais e evidencia
 
 - Frente: **F5 (qualidade)** - dono: **ira** (QA / pentester / code review)
-- Worktree: `<local>`
+- Worktree: `<worktree>`
 - Escopo escrito: somente `tests/**` (contrato secao 3). Nenhum arquivo de outro dono foi editado.
 - Data da rodada de evidencia: 2026-09-19 13:05-13:06 (horario de Brasilia)
 - Nenhum comando `git` foi executado (o PO versiona).
@@ -17,7 +17,7 @@ Comando (o mesmo da secao 8 do contrato):
 Resultado real:
 
 ```
-rootdir: <local>                                                            
+rootdir: <worktree>
 collected 284 items
 ======================= 4 failed, 280 passed in 12.75s ========================
 ```
@@ -154,7 +154,7 @@ contrato nao exige.
 ## 5. Como reproduzir
 
 ```
-cd <local>
+cd <worktree>
 .venv/Scripts/python.exe -m pytest -v
 ```
 

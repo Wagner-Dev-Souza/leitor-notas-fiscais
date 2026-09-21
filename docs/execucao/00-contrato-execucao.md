@@ -12,7 +12,7 @@ nada de chave nova. Tudo roda na maquina.
 
 ## 1. Ambiente (JA PRONTO - nao refaca, nao crie outro venv)
 
-Raiz do worktree: `<local>`
+Raiz do worktree: `<worktree>`
 
 - Interpretador do projeto: `.venv/Scripts/python.exe` (CPython **3.12.14**, criado com `uv`).
 - Rodar sempre com o python do venv. O `python` do PATH e o venv do Hermes, **sem pip** - nao use.

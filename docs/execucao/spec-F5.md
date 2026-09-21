@@ -1,7 +1,7 @@
 # TASK F5 - Testes automatizados, casos adversariais e evidencia
 
 ## Target
-Worktree `<local>`. Diretorio `tests/`.
+Worktree `<worktree>`. Diretorio `tests/`.
 
 ## Pre-requisito
 As frentes F1 (ingestao/extracao/pipeline/CLI), F2 (normalizacao/persistencia),

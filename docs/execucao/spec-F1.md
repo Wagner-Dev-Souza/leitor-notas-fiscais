@@ -1,7 +1,7 @@
 # TASK F1 - Nucleo: ingestao, extracao, pipeline e CLI
 
 ## Target
-Worktree `<local>`.
+Worktree `<worktree>`.
 Arquivos: `app/ingress.py`, `app/extracao.py`, `app/pipeline.py`, `app/run.py`.
 
 ## Contexto obrigatorio (leia ANTES de escrever codigo)

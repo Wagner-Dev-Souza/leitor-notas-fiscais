@@ -1,7 +1,7 @@
 # TASK F2 - Normalizacao, modelo de dados, idempotencia e planilha
 
 ## Target
-Worktree `<local>`.
+Worktree `<worktree>`.
 Arquivos: `app/normaliza.py`, `app/persistencia.py`.
 
 ## Contexto obrigatorio (leia ANTES de escrever codigo)

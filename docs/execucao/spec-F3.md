@@ -1,7 +1,7 @@
 # TASK F3 - Dados sinteticos: gerador de PDFs e mensagens mock + verificador
 
 ## Target
-Worktree `<local>`.
+Worktree `<worktree>`.
 Arquivos: `tools/gerar_mocks.py`, `tools/verificar.py`, `requirements.txt`, `.gitignore`.
 
 ## Contexto obrigatorio (leia ANTES de escrever codigo)

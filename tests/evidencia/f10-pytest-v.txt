@@ -1,7 +1,7 @@
 ============================= test session starts =============================
-platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- <local>                                                            \.venv\Scripts\python.exe
+platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0 -- <worktree>\.venv\Scripts\python.exe
 cachedir: .pytest_cache
-rootdir: <local>                                                            
+rootdir: <worktree>
 collecting ... collected 117 items
 
 tests/test_config.py::test_catalogo_tem_exatamente_as_variaveis_do_contrato PASSED [  0%]

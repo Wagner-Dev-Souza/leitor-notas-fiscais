@@ -4,7 +4,7 @@
 Cliente (projeto pequeno) quer agentes de IA que: (a) leiam PDFs de notas fiscais e pedidos e mensagens recebidas via WhatsApp e Telegram; (b) extraiam numero do pedido, valores, datas e itens; (c) insiram automaticamente numa planilha de controle financeiro da empresa. Precisa ser preciso na extracao e robusto a variacao de formatos de documento e de mensagem.
 
 ## Target
-Escrever UM arquivo: <local>
+Escrever UM arquivo: <worktree>/docs/03-qualidade-riscos.md
 
 ## Change (conteudo obrigatorio, nesta ordem)
 1. Criterios de aceite testaveis por etapa (definicao de pronto): o que precisa ser verdade para o cliente aceitar cada entrega.

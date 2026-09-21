@@ -4,7 +4,7 @@
 Cliente (projeto pequeno) quer agentes de IA que: (a) leiam PDFs de notas fiscais e pedidos e mensagens recebidas via WhatsApp e Telegram; (b) extraiam numero do pedido, valores, datas e itens; (c) insiram automaticamente numa planilha de controle financeiro da empresa. Precisao e robustez sao requisitos explicitos.
 
 ## Target
-Escrever UM arquivo: <local>
+Escrever UM arquivo: <worktree>/docs/05-ux-revisao-humana.md
 
 ## Change (conteudo obrigatorio, nesta ordem)
 1. Principio de desenho: por que revisao humana e obrigatoria quando a extracao tem baixa confianca, e o que NUNCA deve ser escrito na planilha sem aprovacao.

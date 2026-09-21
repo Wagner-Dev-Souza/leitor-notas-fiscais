@@ -2,8 +2,8 @@
 VERIFICADOR DE PRODUCAO - tools/verificar_producao.py (F9 / preguica)
 contrato: docs/execucao/00b-contrato-fechamento.md secao 3.5
 ==============================================================================
-projeto  : <local>                                                            
-python   : <local>                                                            \.venv\Scripts\python.exe
+projeto  : <worktree>
+python   : <worktree>\.venv\Scripts\python.exe
 data/    : retrato tirado antes e conferido depois (este script nao escreve la)
 ------------------------------------------------------------------------------
 temporario: <local>

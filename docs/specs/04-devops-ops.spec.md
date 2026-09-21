@@ -4,7 +4,7 @@
 Cliente (projeto pequeno) quer agentes de IA que: (a) leiam PDFs de notas fiscais e pedidos e mensagens recebidas via WhatsApp e Telegram; (b) extraiam numero do pedido, valores, datas e itens; (c) insiram automaticamente numa planilha de controle financeiro da empresa. Precisa ser preciso e robusto a variacao de formatos.
 
 ## Target
-Escrever UM arquivo: <local>
+Escrever UM arquivo: <worktree>/docs/04-devops-ops.md
 
 ## Change (conteudo obrigatorio, nesta ordem)
 1. Onde o sistema roda: 2 ou 3 opcoes (ex.: VPS com Docker, container gerenciado, serverless) com trade-off de custo, esforco de setup e adequacao a um projeto pequeno. Terminar com UMA recomendacao para o MVP.

@@ -4,7 +4,7 @@
 Cliente (projeto pequeno) quer agentes de IA que: (a) leiam PDFs de notas fiscais e pedidos e mensagens recebidas via WhatsApp e Telegram; (b) extraiam numero do pedido, valores, datas e itens; (c) insiram automaticamente numa planilha de controle financeiro da empresa. Precisa ser preciso na extracao e robusto a variacao de formatos de documento e de mensagem.
 
 ## Target
-Escrever UM arquivo: <local>
+Escrever UM arquivo: <worktree>/docs/02-dados-e-ia.md
 
 ## Change (conteudo obrigatorio, nesta ordem)
 1. Estrategia de extracao: comparar (a) regex/parser determinístico por template, (b) OCR + LLM com saida estruturada (JSON schema), (c) hibrido. Recomendar UM caminho para o MVP e explicar por que, incluindo tratamento de PDF digital vs PDF escaneado.

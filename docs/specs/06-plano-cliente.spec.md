@@ -6,7 +6,7 @@ Cliente (projeto pequeno) quer agentes de IA que: (a) leiam PDFs de notas fiscai
 O cliente declarou o que espera receber: escopo priorizado, solucao desenhada o suficiente para confiar no prazo, prazo por etapas, o que precisamos dele para comecar, e riscos/pontos em aberto.
 
 ## Target
-Escrever UM arquivo: <local>
+Escrever UM arquivo: <worktree>/docs/06-plano-e-requisitos-cliente.md
 
 ## Change (conteudo obrigatorio, nesta ordem)
 1. Cronograma por etapas: 4 a 5 etapas, cada uma com objetivo, entregavel visivel para o cliente e duracao em dias uteis. Marque explicitamente quais premissas sustentam o prazo (ex.: acesso a amostras de PDFs, aprovacao em ate X dias uteis, numero de WhatsApp ja verificado).

@@ -2,7 +2,7 @@
 # Monitor durável do Run: imprime mensagens novas e para quando as 4 frentes da onda 1 concluirem.
 set -u
 export PATH="$LOCALAPPDATA/Programs/orca/resources/bin:$PATH"
-cd "<local>" || exit 1
+cd "<worktree>" || exit 1
 
 COORD="term_1d23b48f-7417-485e-ad32-dd2c9e385b7d"
 RUN=$(cat docs/execucao/_ids/run_id.txt)
