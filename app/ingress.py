@@ -1,4 +1,8 @@
-"""Ingestao da inbox: PDF (nativo e escaneado) e mensagens WhatsApp/Telegram.
+"""Ingestao da inbox: PDF, imagem (foto/print) e mensagens WhatsApp/Telegram.
+
+A pasta `pdf/` da inbox e a pasta de DOCUMENTOS: aceita `.pdf` e tambem imagem
+(`.png`, `.jpg`, `.jpeg`, `.webp`, `.tif`, `.tiff`, `.bmp`). Imagem nao tem camada de
+texto: ela e lida pelo Tesseract real, e o artefato sai com `canal=imagem`.
 
 Dono: avareza (F1 - nucleo). Fronteira congelada na secao 5 do
 `docs/execucao/00-contrato-execucao.md`:
@@ -23,6 +27,7 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 
 from .contratos import (
+    CANAL_IMAGEM,
     CANAL_PDF,
     CANAL_TELEGRAM,
     CANAL_WHATSAPP,
@@ -47,6 +52,17 @@ from .contratos import (
 TABELA_OCR = str.maketrans({"O": "0", "I": "1", "L": "1", "S": "5", "Z": "2"})
 
 SIDECAR_OCR_SUFIXO = ".ocr.txt"
+
+# Extensoes de imagem aceitas como documento de entrada. O sidecar `.ocr.txt` NAO vale
+# para imagem: ele e um mecanismo do PDF (o contrato 4.3 nao preve "OCR simulado" de
+# imagem). Sem Tesseract na maquina, a imagem entra sem texto, com confianca 0.0, e cai
+# na fila de revisao humana como `documento_ilegivel` - nunca e chutada.
+EXTENSOES_IMAGEM = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
+
+IDIOMA_OCR = "por"
+
+# Resolucao (dpi) da rasterizacao da pagina antes do OCR. Ver a nota em `_ocr_tesseract`.
+RESOLUCAO_OCR_DPI = 300
 
 
 def busca_ocr(texto: str) -> str:
@@ -190,6 +206,97 @@ def caminho_sidecar_ocr(caminho) -> Path:
     return Path(str(caminho) + SIDECAR_OCR_SUFIXO)
 
 
+def localizar_tesseract() -> Optional[str]:
+    """Caminho do binario do Tesseract, ou None se ele nao existir de verdade.
+
+    Ordem: `TESSERACT_CMD` (variavel de ambiente opcional) -> PATH do sistema ->
+    locais de instalacao padrao no Windows. **O PATH sozinho nao basta:** o instalador
+    registra o PATH para processos NOVOS, e um processo ja em execucao (a suite, o
+    receptor, o gateway) continua sem enxergar. Por isso a busca no local padrao e
+    parte da funcao, e nao um detalhe.
+
+    Nao inventa motor: sem binario devolve None e quem chamou decide o que fazer.
+    """
+    import os
+    import shutil
+
+    try:
+        import pytesseract  # type: ignore
+    except Exception:
+        return None
+
+    candidatos: list[str] = []
+    do_ambiente = os.environ.get("TESSERACT_CMD")
+    if do_ambiente:
+        candidatos.append(do_ambiente)
+    achado = shutil.which("tesseract")
+    if achado:
+        candidatos.append(achado)
+    for base in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        raiz = os.environ.get(base)
+        if not raiz:
+            continue
+        candidatos.append(str(Path(raiz) / "Tesseract-OCR" / "tesseract.exe"))
+        candidatos.append(str(Path(raiz) / "Programs" / "Tesseract-OCR" / "tesseract.exe"))
+
+    for candidato in candidatos:
+        if candidato and Path(candidato).is_file():
+            pytesseract.pytesseract.tesseract_cmd = candidato
+            return candidato
+    return None
+
+
+def _tesseract_imagem(caminho: Path) -> Optional[TextoExtraido]:
+    """Tesseract real sobre uma imagem. None quando o motor nao existe na maquina."""
+    try:
+        import pytesseract  # type: ignore
+    except Exception:
+        return None
+
+    if not localizar_tesseract():
+        return None
+
+    try:
+        texto = pytesseract.image_to_string(str(caminho), lang=IDIOMA_OCR) or ""
+    except Exception:
+        return None
+
+    return TextoExtraido(
+        texto=texto,
+        paginas=1,
+        # Imagem nao tem camada de texto - o campo ja nasce `False`, como no PDF de imagem.
+        tem_camada_texto=False,
+        motor=MOTOR_TESSERACT,
+        confianca_leitura=1.0,
+        arquivo=str(caminho),
+    )
+
+
+def ocr_imagem(caminho) -> TextoExtraido:
+    """Le uma imagem (foto/print de nota) com o Tesseract real.
+
+    Sem Tesseract instalado devolve texto vazio, `motor=tesseract` (foi o motor
+    escolhido para resolver uma imagem; e o unico que resolve) e
+    `confianca_leitura=0.0` - o extrator transforma isso em `documento_ilegivel` e o
+    documento vai para a fila de revisao humana. Nao existe leitura simulada de
+    imagem: o sidecar `.ocr.txt` e mecanismo do PDF.
+    """
+    caminho_imagem = Path(caminho)
+
+    real = _tesseract_imagem(caminho_imagem)
+    if real is not None:
+        return real
+
+    return TextoExtraido(
+        texto="",
+        paginas=1,
+        tem_camada_texto=False,
+        motor=MOTOR_TESSERACT,
+        confianca_leitura=0.0,
+        arquivo=str(caminho_imagem),
+    )
+
+
 def _ocr_tesseract(caminho: Path) -> Optional[TextoExtraido]:
     """Caminho 1 do contrato 4.3: tesseract real, **somente** se existir de verdade.
 
@@ -200,10 +307,7 @@ def _ocr_tesseract(caminho: Path) -> Optional[TextoExtraido]:
     except Exception:
         return None
 
-    import shutil
-
-    binario = getattr(pytesseract.pytesseract, "tesseract_cmd", "tesseract")
-    if not (shutil.which("tesseract") or Path(str(binario)).is_file()):
+    if not localizar_tesseract():
         return None
 
     try:
@@ -212,8 +316,12 @@ def _ocr_tesseract(caminho: Path) -> Optional[TextoExtraido]:
         textos: list[str] = []
         with pdfplumber.open(str(caminho)) as pdf:
             for pagina in pdf.pages:
-                imagem = pagina.to_image(resolution=200).original
-                textos.append(pytesseract.image_to_string(imagem, lang="por") or "")
+                # 300 dpi, nao 200: medido nesta maquina contra a NF escaneada do corpus,
+                # 200 dpi faz o Tesseract perder a virgula decimal dos itens ("2,35 17,50"
+                # sai "2,35 1750") e a extracao perde a soma; 400 dpi ou mais funde
+                # colunas ("V.UNITARIO" colado na QTD). 300 e o ponto medido como correto.
+                imagem = pagina.to_image(resolution=RESOLUCAO_OCR_DPI).original
+                textos.append(pytesseract.image_to_string(imagem, lang=IDIOMA_OCR) or "")
         texto = "\n".join(textos)
     except Exception:
         return None
@@ -473,6 +581,23 @@ def _artefato_pdf(caminho: Path) -> Artefato:
     )
 
 
+def _artefato_imagem(caminho: Path) -> Artefato:
+    """Imagem da pasta de documentos: lida por OCR, nunca por camada de texto."""
+    leitura = ocr_imagem(caminho)
+    return Artefato(
+        tipo_artefato="imagem",
+        caminho=str(caminho),
+        canal=CANAL_IMAGEM,
+        hash_conteudo=sha256_arquivo(caminho),
+        texto=leitura.texto,
+        paginas=leitura.paginas,
+        tem_camada_texto=False,
+        motor=leitura.motor,
+        confianca_leitura=leitura.confianca_leitura,
+        mensagem=None,
+    )
+
+
 def _artefato_mensagem(msg: MensagemBruta, caminho: Path) -> Artefato:
     return Artefato(
         tipo_artefato="mensagem",
@@ -502,9 +627,17 @@ def ingerir(inbox) -> list[Artefato]:
 
     artefatos: list[Artefato] = []
 
-    diretorio_pdf = raiz / "pdf"
-    for caminho in sorted(diretorio_pdf.glob("*.pdf")):
-        artefatos.append(_artefato_pdf(caminho))
+    # A pasta `pdf/` e a pasta de DOCUMENTOS: aceita PDF e imagem. O sidecar
+    # `.ocr.txt` continua sendo insumo do OCR, nunca artefato por si.
+    diretorio_documentos = raiz / "pdf"
+    for caminho in sorted(diretorio_documentos.glob("*")):
+        if not caminho.is_file():
+            continue
+        sufixo = caminho.suffix.lower()
+        if sufixo == ".pdf":
+            artefatos.append(_artefato_pdf(caminho))
+        elif sufixo in EXTENSOES_IMAGEM:
+            artefatos.append(_artefato_imagem(caminho))
 
     for caminho in sorted((raiz / "whatsapp").glob("*.jsonl")):
         for msg in ler_mensagens_whatsapp(caminho):
@@ -518,7 +651,10 @@ def ingerir(inbox) -> list[Artefato]:
 
 
 __all__ = [
+    "EXTENSOES_IMAGEM",
+    "localizar_tesseract",
     "ler_pdf",
+    "ocr_imagem",
     "ocr_pdf",
     "ler_mensagens_whatsapp",
     "ler_mensagens_telegram",

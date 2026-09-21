@@ -13,10 +13,17 @@ openpyxl==3.1.5
 pytest==9.1.1
 pillow==12.3.0
 
-# --- OCR real: OPCIONAL, NAO instalado ---------------------------------------
-# Nao existe binario Tesseract nesta maquina, entao o caminho de OCR do projeto
-# e o motor SIMULADO (sidecar `<arquivo>.ocr.txt`, rotulado como simulado na
-# trilha de auditoria). Se um dia o Tesseract estiver disponivel no PATH,
-# descomente a linha abaixo - ela NAO esta fixada porque nunca foi instalada:
+# --- OCR real (Tesseract) ----------------------------------------------------
+# O motor real esta INSTALADO e em uso: binario Tesseract 5.5.3 (instalador oficial,
+# com o idioma `por`) + o pacote `pytesseract` abaixo. E ele que le a imagem (foto/
+# print de nota) e o PDF escaneado.
 #
-# pytesseract
+# Ordem de leitura do projeto: tesseract real -> sidecar `.ocr.txt` (simulado, so
+# existe no material sintetico) -> texto vazio marcado para revisao humana. Sem o
+# binario, o caminho simulado assume e sai ROTULADO como simulado na trilha.
+#
+# O binario NAO vem pelo pip. No Windows:
+#   winget install --id tesseract-ocr.tesseract -e
+# `app/ingress.localizar_tesseract()` encontra o executavel pelo PATH, por
+# `TESSERACT_CMD` ou no local padrao de instalacao.
+pytesseract==0.3.13

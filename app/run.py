@@ -108,7 +108,8 @@ def _linhas_resumo(resumo: dict, verbose: bool, contexto: dict) -> list[str]:
             f"Rodada   : {resumo['rodada_id']}",
             _linha(),
             f"Artefatos ingeridos : {resumo['artefatos']} "
-            f"(pdf {resumo['pdfs']} | mensagens {resumo['mensagens']})",
+            f"(pdf {resumo['pdfs']} | imagens {resumo['imagens']} | "
+            f"mensagens {resumo['mensagens']})",
             f"Auto-aprovados      : {resumo['auto_aprovados']}",
             f"Em revisao humana   : {resumo['revisao']}",
             f"Rejeitados          : {resumo['rejeitados']}",
