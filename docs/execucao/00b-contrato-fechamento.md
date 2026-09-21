@@ -167,6 +167,16 @@ Regras da coleta (congeladas):
   `allowed_updates`/filtro local por `message.chat.id`; cada item de `result` vira uma linha
   (mesmo formato de `data/mocks/telegram/*.jsonl`). Sem update novo -> `arquivos=()` e
   `detalhe` explicando; isso **nao** e erro.
+
+* **Offset da coleta (emenda aprovada em 21/09/2026, uso real)**: `offset=None` deixa de
+  significar "nao mandar offset" e passa a significar "usar o offset confirmado da ultima
+  rodada". `coletar_telegram` grava `OUT_DIR/telegram_offset.json` com `maior update_id + 1` e
+  o envia na rodada seguinte - e essa a confirmacao de leitura do Telegram. A **assinatura nao
+  muda** (`offset` continua aceito e, quando informado, tem precedencia sobre o estado). Update
+  de outro chat tambem e confirmado (foi visto pelo bot) e estado ilegivel e tratado como
+  primeira rodada: a coleta nunca quebra por causa do estado. Motivo: sem isso o `getUpdates`
+  re-entrega a janela inteira a cada rodada; a deduplicacao ja segurava a duplicata, mas o custo
+  crescia com o historico do grupo (medido em uso real, 21/09).
 * **WhatsApp**: cada arquivo `.json` ou `.jsonl` em `cfg.whatsapp.webhook_dir` e um envelope
   (`{"object":"whatsapp_business_account","entry":[...]}`, mesmo formato do mock). Com
   `mover=True`, o arquivo consumido vai para `<webhook_dir>/processados/`. Envelope sem
