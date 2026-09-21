@@ -50,6 +50,7 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 from app.contratos import (  # noqa: E402
+    CANAL_IMAGEM,
     CANAL_PDF,
     CANAL_TELEGRAM,
     CANAL_WHATSAPP,
@@ -303,6 +304,7 @@ class DocPDF:
     chave: Optional[str] = None
     caso_borda: Optional[str] = None
     escaneado: bool = False
+    imagem: bool = False
     copia_de: Optional[str] = None
     observacao: Optional[str] = None
 
@@ -585,6 +587,38 @@ def render_pdf_imagem(caminho: Path, linhas: list[tuple[str, str]], rng: random.
     )
 
 
+def render_imagem_nota(caminho: Path, linhas: list[tuple[str, str]], rng: random.Random) -> None:
+    """Foto/print da nota em PNG - o documento chegando como IMAGEM (canal `imagem`).
+
+    Renderizacao limpa DE PROPOSITO: fonte grande (30), sem rotacao e com pouca sujeira
+    (deterministica pela seed). O que esta foto prova e o CAMINHO (imagem -> OCR real ->
+    campos na planilha/fila), e nao a tolerancia a foto torta - essa depende de material
+    real do cliente e e medicao de produto, nao de material sintetico. Medido: a 300 dpi o
+    Tesseract le esta renderizacao sem perder virgula decimal.
+    """
+    largura, altura_linha, margem = 1500, 48, 30
+    altura = margem * 2 + altura_linha * len(linhas)
+    img = Image.new("L", (largura, altura), 255)
+    desenho = ImageDraw.Draw(img)
+    fonte = _fonte(30)
+    fonte_titulo = _fonte(32)
+    y = margem
+    for texto, estilo in linhas:
+        desenho.text(
+            (margem, y), texto,
+            fill=25 if estilo in ("titulo", "bold") else 45,
+            font=fonte_titulo if estilo == "titulo" else fonte,
+        )
+        y += altura_linha
+    # sujeira leve: parece foto, sem atrapalhar a leitura
+    for _ in range(1500):
+        x = rng.randrange(largura)
+        yy = rng.randrange(altura)
+        img.putpixel((x, yy), rng.randrange(210, 245))
+    caminho.parent.mkdir(parents=True, exist_ok=True)
+    com_retry(lambda: img.save(caminho, "PNG"), str(caminho))
+
+
 # ------------------------------------------------------------------- envelopes
 
 
@@ -669,13 +703,14 @@ def montar_documentos(seed: int) -> tuple[list[DocPDF], list[DocMsg], list[Forne
     docs: list[DocPDF] = []
 
     def nf(nome, fornecedor, numero, emissao, itens, *, vencimento=None, caso=None,
-           total=None, escaneado=False, copia_de=None, observacao=None) -> DocPDF:
+           total=None, escaneado=False, imagem=False, copia_de=None,
+           observacao=None) -> DocPDF:
         rng = random.Random(f"{seed}:chave:{nome}")
         doc = DocPDF(
             nome=nome, fornecedor=fornecedor, tipo_documento=TIPO_NF, numero=numero,
             emissao=emissao, itens=itens, vencimento=vencimento, caso_borda=caso,
-            total_impresso_centavos=total, escaneado=escaneado, copia_de=copia_de,
-            observacao=observacao,
+            total_impresso_centavos=total, escaneado=escaneado, imagem=imagem,
+            copia_de=copia_de, observacao=observacao,
         )
         doc.chave = montar_chave(fornecedor.cnpj, numero, emissao, rng)
         docs.append(doc)
@@ -776,6 +811,15 @@ def montar_documentos(seed: int) -> tuple[list[DocPDF], list[DocMsg], list[Forne
         it(gama.itens[3], 3, "JG", 15900),
         it(gama.itens[2], 2, "PC", 8990),
     ])
+
+    # --- B7: a nota chegando como FOTO (canal `imagem`), lida pelo OCR real.
+    # Documento PROPRIO (numero e chave proprios): e outra nota, nao a mesma em dois
+    # formatos. O caso "a mesma nota por PDF e por foto vira uma linha so" e demonstrado
+    # na deduplicacao por texto e tem teste em tests/test_imagem.py.
+    nf("FORN-GAMA_nf_3003_foto.png", gama, 3003, dt(22, 3), [
+        it(gama.itens[0], 10, "PC", 1450),
+        it(gama.itens[3], 2, "JG", 15900),
+    ], vencimento=dt(21, 4), caso="B7", imagem=True)
 
     # --- mensagens (1 arquivo = 1 mensagem = envelope real)
     msgs = [
@@ -900,6 +944,9 @@ def esperado_pdf(doc: DocPDF) -> dict:
     elif doc.caso_borda == "B6":
         esperado["status_esperado"] = "revisao_humana"
         esperado["motivos_esperados"] = ["total_sem_detalhamento"]
+    elif doc.caso_borda == "B7":     # foto da nota: leitura vem de OCR real (0,65)
+        esperado["status_esperado"] = "revisao_humana"
+        esperado["motivos_esperados"] = ["baixa_confianca"]
     else:
         esperado["status_esperado"] = "auto_aprovado"
         esperado["motivos_esperados"] = []
@@ -964,6 +1011,8 @@ def limpar(out: Path) -> None:
 
 
 NOTAS_MANIFEST = {
+    "B7": "foto da nota (PNG, canal imagem): lida pelo OCR real, sai com confianca de OCR "
+          "(0,65) e vai para revisao humana - nunca para a planilha sem conferencia.",
     "B1": ("PDF de imagem, SEM camada de texto (pypdf extract_text() == ''). O caminho e o OCR "
            "simulado: o sidecar .ocr.txt traz a transcricao degradada. CONJUNTO DE DEGRADACAO "
            "(congelado no contrato 4.3 - nenhuma outra confusao e usada): pares 0/O, 1/l/I "
@@ -1007,6 +1056,10 @@ def gerar(out: Path, seed: int) -> dict:
         if doc.copia_de:
             origem = out / "pdf" / doc.copia_de
             com_retry(lambda o=origem, d=destino: shutil.copyfile(o, d), str(destino))
+        elif doc.imagem:
+            render_imagem_nota(
+                destino, linhas_documento(doc), random.Random(f"{seed}:foto:{doc.nome}")
+            )
         elif doc.escaneado:
             rng_img = random.Random(f"{seed}:imagem:{doc.nome}")
             render_pdf_imagem(destino, linhas_documento(doc, degradar=False), rng_img)
@@ -1024,7 +1077,7 @@ def gerar(out: Path, seed: int) -> dict:
         criados.append(destino)
         itens_manifest.append({
             **_caminhos_manifest(destino, out),
-            "canal": CANAL_PDF,
+            "canal": CANAL_IMAGEM if doc.imagem else CANAL_PDF,
             "tipo_documento": doc.tipo_documento,
             "caso_borda": doc.caso_borda,
             "sha256": sha256_arquivo(destino),
@@ -1092,13 +1145,18 @@ def gerar(out: Path, seed: int) -> dict:
 # ----------------------------------------------------------------- self-check
 
 
-def _texto_conferencia(out: Path, item: dict) -> str:
+def _texto_conferencia(out: Path, item: dict, docs: Optional[dict] = None) -> str:
     """Texto onde os valores do `esperado` tem de aparecer literalmente.
 
-    PDF com camada de texto -> texto extraido; PDF escaneado -> sidecar do OCR
-    simulado com as confusoes congeladas ja desfeitas; mensagem -> o proprio JSON.
+    PDF com camada de texto -> texto extraido; PDF escaneado -> sidecar do OCR simulado com
+    as confusoes congeladas ja desfeitas; **foto da nota (.png)** -> o TEXTO DESENHADO na
+    imagem (a leitura por OCR dela tem teste proprio na suite; aqui se confere o material
+    gerado, e o gerador nao pode depender de OCR instalado); mensagem -> o proprio JSON.
     """
     caminho = out / item["arquivo"]
+    if caminho.suffix == ".png":
+        doc = (docs or {})[Path(item["arquivo"]).name]
+        return "\n".join(texto for texto, _ in linhas_documento(doc))
     if caminho.suffix == ".pdf":
         if item["arquivo"].endswith("_escaneada.pdf"):
             lado = caminho.with_name(caminho.stem + ".ocr.txt")
@@ -1176,11 +1234,12 @@ def self_check(out: Path, manifest: dict) -> list[str]:
         )
 
     # --- sanidade D1.b: todo valor do manifest aparece no documento
+    docs = {d.nome: d for d in montar_documentos(manifest["seed"])[0]}
     conferencias = 0
     for item in manifest["itens"]:
         esp = item["esperado"]
         caminho = out / item["arquivo"]
-        texto = _texto_conferencia(out, item)
+        texto = _texto_conferencia(out, item, docs)
         digitos = "".join(c for c in texto if c.isdigit())
         checagens = []
         if esp.get("chave_acesso_nf"):
@@ -1194,7 +1253,9 @@ def self_check(out: Path, manifest: dict) -> list[str]:
         # Datas e itens: so em documento com camada de texto. O escaneado (B1) e coberto
         # integralmente pela conferencia de degradacao (D2), que compara o sidecar com o
         # documento original caractere a caractere sob as classes de confusao congeladas.
-        if caminho.suffix == ".pdf" and not item["arquivo"].endswith("_escaneada.pdf"):
+        if caminho.suffix in (".pdf", ".png") and not item["arquivo"].endswith(
+            "_escaneada.pdf"
+        ):
             for campo in ("data_emissao", "data_vencimento"):
                 iso = esp.get(campo)
                 if iso:
@@ -1221,7 +1282,6 @@ def self_check(out: Path, manifest: dict) -> list[str]:
     )
 
     # --- sanidade D2: o sidecar do OCR so usa o conjunto CONGELADO de confusoes
-    docs = {d.nome: d for d in montar_documentos(manifest["seed"])[0]}
     for item in manifest["itens"]:
         if not item["arquivo"].endswith("_escaneada.pdf"):
             continue
@@ -1266,6 +1326,7 @@ def imprimir_resumo(out: Path, manifest: dict) -> None:
     grupos = {
         "pdf/*.pdf": lambda p: p.suffix == ".pdf",
         "pdf/*.ocr.txt": lambda p: p.name.endswith(".ocr.txt"),
+        "pdf/*.png": lambda p: p.suffix == ".png",
         "whatsapp/*.jsonl": lambda p: p.suffix == ".jsonl" and "whatsapp" in p.parts,
         "telegram/*.jsonl": lambda p: p.suffix == ".jsonl" and "telegram" in p.parts,
     }

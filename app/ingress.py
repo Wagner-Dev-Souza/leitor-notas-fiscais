@@ -29,6 +29,7 @@ from typing import Any, Iterator, Optional
 from .contratos import (
     CANAL_IMAGEM,
     CANAL_PDF,
+    EXTENSOES_IMAGEM,
     CANAL_TELEGRAM,
     CANAL_WHATSAPP,
     MOTOR_OCR_SIMULADO,
@@ -53,11 +54,11 @@ TABELA_OCR = str.maketrans({"O": "0", "I": "1", "L": "1", "S": "5", "Z": "2"})
 
 SIDECAR_OCR_SUFIXO = ".ocr.txt"
 
-# Extensoes de imagem aceitas como documento de entrada. O sidecar `.ocr.txt` NAO vale
-# para imagem: ele e um mecanismo do PDF (o contrato 4.3 nao preve "OCR simulado" de
-# imagem). Sem Tesseract na maquina, a imagem entra sem texto, com confianca 0.0, e cai
-# na fila de revisao humana como `documento_ilegivel` - nunca e chutada.
-EXTENSOES_IMAGEM = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
+# `EXTENSOES_IMAGEM` vem do contrato (`app/contratos.py`): a mesma lista decide a ingestao
+# e o reconhecimento de que a leitura veio de OCR. O sidecar `.ocr.txt` NAO vale para
+# imagem: ele e um mecanismo do PDF (o contrato 4.3 nao preve "OCR simulado" de imagem).
+# Sem Tesseract na maquina, a imagem entra sem texto, com confianca 0.0, e cai na fila de
+# revisao humana como `documento_ilegivel` - nunca e chutada.
 
 IDIOMA_OCR = "por"
 

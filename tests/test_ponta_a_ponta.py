@@ -23,7 +23,22 @@ from pathlib import Path
 import pytest
 
 from app.contratos import COLUNAS_PLANILHA
-from conftest import MOCKS, OUT_PADRAO, ler_auditoria, ler_fila, linhas_planilha, rodar_comando_unico
+from conftest import (
+    MOCKS,
+    OUT_PADRAO,
+    RAIZ_PROJETO,
+    ler_auditoria,
+    ler_fila,
+    linhas_planilha,
+    rodar_comando_unico,
+)
+
+# Total de itens do corpus sintetico (manifest = verdade de referencia). Derivado, para
+# nao haver numero magico a cada caso novo do gerador (a foto da nota, caso B7, entrou
+# como o 21o item).
+TOTAL_DO_CORPUS = len(
+    json.loads((RAIZ_PROJETO / "data" / "mocks" / "manifest.json").read_text(encoding="utf-8"))["itens"]
+)
 
 CHAVES_AUDITORIA = (
     "ts",
@@ -163,7 +178,9 @@ def test_comando_unico_com_diretorios_isolados_publica_so_os_validados(python_ve
     assert "2003" not in publicados, "caso B1 (OCR com baixa confianca) entrou na planilha"
 
     registros = ler_auditoria(out / "auditoria.jsonl")
-    assert len(registros) == 20, f"esperado um registro por artefato (20), veio {len(registros)}"
+    assert len(registros) == TOTAL_DO_CORPUS, (
+        f"esperado um registro por artefato ({TOTAL_DO_CORPUS}), veio {len(registros)}"
+    )
     assert all(r["documento_id"] for r in registros)
 
 

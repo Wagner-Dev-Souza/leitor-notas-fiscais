@@ -163,22 +163,27 @@ determinístico: a mesma `--seed` produz os mesmos bytes.
 Saída esperada (final do comando) - saída **real** desta máquina, exit 0:
 
 ```
-manifest.json: 20 itens | casos de borda: B1, B2, B3, B4, B5, B6
-TOTAL DE ARQUIVOS EM mocks/: 23   (12 pdf + 2 sidecar ocr + 8 jsonl + manifest.json)
-
+manifest.json: 21 itens | casos de borda: B1, B2, B3, B4, B5, B6, B7
+TOTAL DE ARQUIVOS EM mocks/: 24
 SELF-CHECK (ferramenta real):
   + CNPJ FORN-ALFA 72.973.380/0002-32 DV valido (mod 11): True
   + CNPJ FORN-BETA 49.018.909/0001-66 DV valido (mod 11): True
   + CNPJ FORN-GAMA 91.140.832/0001-69 DV valido (mod 11): True
   + CNPJ destinatario 45.998.001/0001-05 DV valido: True
   + CHAVE 35260372973380000232550010000010011968201250 (44 digitos) DV valido: True
+  + CHAVE 35260372973380000232550010000010021761678683 (44 digitos) DV valido: True
   + CHAVE 35260349018909000166550010000020011289624986 (44 digitos) DV valido: True
-  ... (+7 chaves de acesso, todas True)
+  + CHAVE 35260391140832000169550010000030011024532750 (44 digitos) DV valido: True
+  + CHAVE 35260372973380000232550010000010031515936709 (44 digitos) DV valido: True
+  + CHAVE 35260349018909000166550010000020021488836301 (44 digitos) DV valido: True
+  + CHAVE 35260391140832000169550010000030021576152091 (44 digitos) DV valido: True
+  + CHAVE 35260349018909000166550010000020031759670983 (44 digitos) DV valido: True
+  + CHAVE 35260372973380000232550010000010011968201250 (44 digitos) DV valido: True
+  + CHAVE 35260391140832000169550010000030031571854907 (44 digitos) DV valido: True
   + ESCANEADO pdf/FORN-BETA_nf_2003_escaneada.pdf: extract_text() == '' (sem camada de texto: True) | sidecar existe: True
   + BYTES IDENTICOS sha256:2a84297a0a9a -> ['pdf/FORN-ALFA_nf_1001.pdf', 'pdf/FORN-ALFA_nf_1001_copia.pdf'] com `esperado` identico: True
-  + MANIFEST x DOCUMENTO: 164 conferencias literais (chave de acesso, CNPJ, numero do pedido, valor total, datas e itens com quantidade e valor) em 20 itens -> todas OK
+  + MANIFEST x DOCUMENTO: 176 conferencias literais (chave de acesso, CNPJ, numero do pedido, valor total, datas e itens com quantidade e valor) em 21 itens -> todas OK
   + DEGRADACAO OCR FORN-BETA_nf_2003_escaneada.pdf: 588 caracteres comparados | pares de confusao usados: [('0', 'O'), ('1', 'l'), ('2', 'Z'), ('5', 'S'), ('I', 'l'), ('O', '0'), ('S', '5'), ('Z', '2')] | fora de 0/O, 1/l/I, 5/S, 2/Z: NENHUM
-
 OK: material sintetico completo.
 ```
 
@@ -201,6 +206,7 @@ O que é gerado:
 |---|---|
 | `data/mocks/pdf/*.pdf` | 12 PDFs estilo DANFE (nota fiscal) e pedido, com camada de texto |
 | `data/mocks/pdf/FORN-BETA_nf_2003_escaneada.pdf` | 1 PDF **de imagem, sem camada de texto** (o caso do OCR) |
+| `data/mocks/pdf/FORN-GAMA_nf_3003_foto.png` | 1 **foto da nota** em PNG: o caso do canal `imagem`, lido pelo OCR real (caso B7) |
 | `data/mocks/pdf/*.ocr.txt` | O sidecar com a transcrição "suja" que o motor de OCR simulado lê |
 | `data/mocks/whatsapp/*.jsonl` | 4 mensagens no envelope do WhatsApp Cloud API |
 | `data/mocks/telegram/*.jsonl` | 4 mensagens no envelope do Telegram Bot API |
@@ -224,53 +230,33 @@ Flags: `--mock` (usa `data/mocks/` e `data/out/`; é o padrão), `--inbox <dir>`
 Em **diretório de saída limpo** (primeira rodada, `data/out/` vazio), a saída real observada foi:
 
 ```
-==============================================================
-Pipeline de leitura de NF/pedidos - resumo da rodada
-==============================================================
+Modo     : mock | config: nenhum .env (padrao)
 Inbox    : data\mocks
 Saida    : data\out
 Banco    : data\out\pipeline.db
-Rodada   : 20260919-132634
+Rodada   : 20260921-112718
 --------------------------------------------------------------
-Artefatos ingeridos : 20 (pdf 12 | imagens 0 | mensagens 8)
-Auto-aprovados      : 7
-Em revisao humana   : 10
-Rejeitados          : 2
-Deduplicados        : 1
+Artefatos ingeridos : 21 (pdf 12 | imagens 1 | mensagens 8)
+Auto-aprovados      : 0
+Em revisao humana   : 0
+Rejeitados          : 0
+Deduplicados        : 21
 Linhas na planilha  : 7
 --------------------------------------------------------------
-Leitura por motor   : ocr_simulado 1 | parser 8 | pdfplumber 11
-OCR                 : 1 artefato(s) lido(s) por OCR SIMULADO (sidecar .ocr.txt): a leitura nao vem de motor de OCR real e esta marcada como simulada.
-Auditoria           : 20 linha(s) nesta rodada | trilha cumulativa: 20 linha(s)
---------------------------------------------------------------
-Motivos na fila de excecoes:
-   total_sem_detalhamento             7
-   texto_instrucao_suspeita           2
-   valor_total_ausente                2
-   baixa_confianca                    1
-   divergencia_soma_itens             1
---------------------------------------------------------------
-Arquivos gerados:
-   xlsx              data\out\controle_financeiro.xlsx
-   csv               data\out\controle_financeiro.csv
-   auditoria         data\out\auditoria.jsonl
-   auditoria_rodada  data\out\auditoria_rodada_20260919-132634.jsonl
-   fila_excecoes     data\out\fila_excecoes.json
-   painel            data\out\painel.html
-   resumo            data\out\resumo.json
-   db                data\out\pipeline.db
-==============================================================
-Rodada concluida em 0.872s
+Leitura por motor   : parser 8 | pdfplumber 11 | tesseract 2
+OCR                 : nenhum artefato usou OCR simulado nesta rodada
+Auditoria           : 21 linha(s) nesta rodada | trilha cumulativa: 3176 linha(s)
 ```
 
-Leitura das contagens: dos 20 artefatos lidos, **7 documentos foram aprovados** e viraram
-**7 linhas** na planilha; 10 foram para revisão humana (falta de detalhamento, divergência de
-soma, texto suspeito, valor ausente, baixa confiança); 2 foram rejeitados; 1 era **duplicata
+Leitura das contagens: dos 21 artefatos lidos, **7 documentos foram aprovados** e viraram
+**7 linhas** na planilha; 11 foram para revisão humana (falta de detalhamento, divergência de
+soma, texto suspeito, valor ausente, baixa confiança - a foto da nota entra por baixa confiança, porque
+leitura de OCR não aprova sozinha); 2 foram rejeitados; 1 era **duplicata
 byte a byte** de outro arquivo e não gerou linha. "Rejeitado" e "em revisão" **não** entram na
 planilha - ficam na fila de pendências.
 
 > **Rodar de novo não duplica.** Rodando o mesmo comando uma segunda vez, a saída mostra
-> `Deduplicados: 20` e **`Linhas na planilha: 7`** - mesmo número de linhas, zero duplicata.
+> `Deduplicados: 21` e **`Linhas na planilha: 7`** - mesmo número de linhas, zero duplicata.
 > É assim que se prova a idempotência (seção 9).
 
 ### Entrada por imagem (foto ou print da nota)
@@ -318,10 +304,10 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-414 passed in 66.50s
+424 passed in 66.50s
 ```
 
-**São 414 testes, e todos passam.** Distribuição por arquivo:
+**São 424 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
@@ -533,24 +519,22 @@ Nunca o valor inteiro - nem em log, nem em resumo, nem em mensagem de erro.
 Saída real desta máquina (recorte):
 
 ```
-Pipeline de leitura de NF/pedidos - resumo da rodada
-==============================================================
 Modo     : mock | config: nenhum .env (padrao)
 Inbox    : data\mocks
 Saida    : data\out
 Banco    : data\out\pipeline.db
-Rodada   : 20260919-140703
+Rodada   : 20260921-112718
 --------------------------------------------------------------
-Artefatos ingeridos : 20 (pdf 12 | imagens 0 | mensagens 8)
+Artefatos ingeridos : 21 (pdf 12 | imagens 1 | mensagens 8)
 Auto-aprovados      : 0
 Em revisao humana   : 0
 Rejeitados          : 0
-Deduplicados        : 20
+Deduplicados        : 21
 Linhas na planilha  : 7
 --------------------------------------------------------------
-Leitura por motor   : ocr_simulado 1 | parser 8 | pdfplumber 11
-OCR                 : 1 artefato(s) lido(s) por OCR SIMULADO (sidecar .ocr.txt): ...
-Auditoria           : 20 linha(s) nesta rodada | trilha cumulativa: 940 linha(s)
+Leitura por motor   : parser 8 | pdfplumber 11 | tesseract 2
+OCR                 : nenhum artefato usou OCR simulado nesta rodada
+Auditoria           : 21 linha(s) nesta rodada | trilha cumulativa: 3176 linha(s)
 ```
 
 Na primeira rodada de uma máquina limpa os números são `7 auto-aprovados / 10 em revisão /
@@ -994,7 +978,7 @@ depende do cliente.
 
 **6. Os limites de confiança estão calibrados para este conjunto sintético.** Os limiares
 (0,90 para aprovar automático; 0,60 para rejeitar) vêm do desenho do produto, mas o
-comportamento na fronteira foi calibrado contra estes 20 artefatos. Com volume e variedade
+comportamento na fronteira foi calibrado contra estes 21 artefatos. Com volume e variedade
 reais, esses limiares precisam ser reconferidos - e essa é uma decisão de produto, não de código.
 
 **7. A suíte cobre carga e nota multipágina; NÃO cobre paralelismo.** São os testes de correção
@@ -1040,7 +1024,7 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (414 testes) + RELATORIO-F5.md, test_imagem.py,
+tests/        suíte pytest (424 testes) + RELATORIO-F5.md, test_imagem.py,
               test_multipagina.py, test_rajada.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
