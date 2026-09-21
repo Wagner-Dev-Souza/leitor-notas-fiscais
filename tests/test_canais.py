@@ -553,7 +553,7 @@ def _python_do_projeto() -> str:
     return str(RAIZ_PROJETO / ".venv" / "Scripts" / "python.exe")
 
 
-def _http(metodo: str, porta: int, caminho: str, corpo=None):
+def _http(metodo: str, porta: int, caminho: str, corpo=None, cabecalhos=None):
     import urllib.error
     import urllib.request
 
@@ -562,6 +562,8 @@ def _http(metodo: str, porta: int, caminho: str, corpo=None):
     requisicao = urllib.request.Request(url, data=dados, method=metodo)
     if dados:
         requisicao.add_header("Content-Type", "application/json")
+    for nome_cabecalho, valor_cabecalho in (cabecalhos or {}).items():
+        requisicao.add_header(nome_cabecalho, valor_cabecalho)
     try:
         with urllib.request.urlopen(requisicao, timeout=15) as resposta:
             return resposta.status, resposta.read().decode("utf-8", errors="replace")
@@ -631,6 +633,124 @@ def test_receptor_de_webhook_local_ciclo_completo(tmp_path):
     mock = ler_jsonl(MOCKS / "whatsapp" / "whatsapp_1.jsonl")[0]
     assert set(coletado) == set(mock)
     assert coletado["entry"][0]["changes"][0]["value"]["messages"][0]["id"] == "wamid.COLETADO"
+
+
+def test_receptor_de_webhook_confere_assinatura_do_post(tmp_path):
+    """Com `WHATSAPP_APP_SECRET` configurado: POST sem assinatura (ou com a errada) NAO grava.
+
+    E a pendencia declarada na entrega anterior: o receptor aceitava qualquer POST porque o
+    catalogo nao tinha o app secret da Meta.
+    """
+    import hashlib
+    import hmac
+
+    segredo = "SEGREDO_FICTICIO_APP_SECRET_DE_TESTE"
+    caminho_env = env_de_teste(tmp_path, WHATSAPP_APP_SECRET=segredo)
+    porta = porta_livre()
+    processo = subprocess.Popen(
+        [
+            _python_do_projeto(),
+            str(RAIZ_PROJETO / "tools" / "receber_webhook_whatsapp.py"),
+            "--host",
+            "127.0.0.1",
+            "--porta",
+            str(porta),
+            "--env",
+            str(caminho_env),
+            "--uma-vez",
+        ],
+        cwd=str(tmp_path),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    try:
+        esperar_no_ar(porta)
+        envelope = envelope_whatsapp()
+        corpo = json.dumps(envelope, ensure_ascii=False).encode("utf-8")
+        assinatura = "sha256=" + hmac.new(
+            segredo.encode("utf-8"), corpo, hashlib.sha256
+        ).hexdigest()
+
+        sem_assinatura, _ = _http("POST", porta, "/webhook/whatsapp", envelope)
+        assinatura_errada, _ = _http(
+            "POST",
+            porta,
+            "/webhook/whatsapp",
+            envelope,
+            cabecalhos={"X-Hub-Signature-256": "sha256=" + "0" * 64},
+        )
+        assinatura_de_outro_formato, _ = _http(
+            "POST",
+            porta,
+            "/webhook/whatsapp",
+            envelope,
+            cabecalhos={"X-Hub-Signature-256": assinatura.replace("sha256=", "")},
+        )
+        assinatura_certa, _ = _http(
+            "POST",
+            porta,
+            "/webhook/whatsapp",
+            envelope,
+            cabecalhos={"X-Hub-Signature-256": assinatura},
+        )
+
+        saida, _ = processo.communicate(timeout=30)
+    finally:
+        if processo.poll() is None:  # pragma: no cover - so se travar
+            processo.kill()
+            processo.communicate(timeout=10)
+
+    assert sem_assinatura == 401, "POST sem assinatura tem de ser recusado"
+    assert assinatura_errada == 401, "POST com assinatura que nao confere tem de ser recusado"
+    assert assinatura_de_outro_formato == 401, "assinatura sem o prefixo sha256= tem de ser recusada"
+    assert assinatura_certa == 200, "POST com assinatura correta tem de ser aceito"
+
+    gravados = sorted(Path(tmp_path / "webhook").glob("*.json"))
+    assert len(gravados) == 1, f"so o POST assinado podia gravar: {gravados}"
+    assert json.loads(gravados[0].read_text(encoding="utf-8")) == envelope
+
+    assert segredo not in saida, "o app secret apareceu na saida do receptor"
+    assert "401 assinatura X-Hub-Signature-256 ausente ou nao confere" in saida
+    assert "assinatura do POST: VALIDADA" in saida
+
+
+def test_receptor_de_webhook_avisa_quando_falta_o_app_secret(tmp_path):
+    """Sem o app secret o receptor sobe, mas avisa alto que nao confere a origem."""
+    caminho_env = env_de_teste(tmp_path)
+    porta = porta_livre()
+    processo = subprocess.Popen(
+        [
+            _python_do_projeto(),
+            str(RAIZ_PROJETO / "tools" / "receber_webhook_whatsapp.py"),
+            "--host",
+            "127.0.0.1",
+            "--porta",
+            str(porta),
+            "--env",
+            str(caminho_env),
+            "--uma-vez",
+        ],
+        cwd=str(tmp_path),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    try:
+        esperar_no_ar(porta)
+        status, _ = _http("POST", porta, "/webhook/whatsapp", envelope_whatsapp())
+        saida, _ = processo.communicate(timeout=30)
+    finally:
+        if processo.poll() is None:  # pragma: no cover - so se travar
+            processo.kill()
+            processo.communicate(timeout=10)
+
+    assert status == 200, "sem app secret o POST segue aceito (uso local, declarado no aviso)"
+    assert "AVISO: WHATSAPP_APP_SECRET nao configurado" in saida
 
 
 # --------------------------------------------------------------------- modo real: ponta a ponta

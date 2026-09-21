@@ -38,6 +38,7 @@ CONTRATO: dict[str, tuple[tuple[str, ...], bool, str]] = {
     "WHATSAPP_TOKEN": (("real:whatsapp",), True, ""),
     "WHATSAPP_PHONE_NUMBER_ID": (("real:whatsapp",), False, ""),
     "WHATSAPP_VERIFY_TOKEN": (("real:whatsapp",), True, ""),
+    "WHATSAPP_APP_SECRET": ((), True, ""),
     "WHATSAPP_API_BASE": ((), False, "https://graph.facebook.com/v21.0"),
     "WHATSAPP_WEBHOOK_DIR": ((), False, "data/inbox_webhook/whatsapp"),
 }
@@ -112,9 +113,14 @@ def test_variavel_sensivel_nunca_tem_padrao_nem_exemplo():
         assert var.exemplo == "", f"{var.nome} e sensivel e tem exemplo preenchido no catalogo"
 
 
-def test_sensiveis_do_catalogo_sao_exatamente_os_tres_segredos_do_contrato():
+def test_sensiveis_do_catalogo_sao_exatamente_os_segredos_do_contrato():
     sensiveis = {var.nome for var in CFG.VARIAVEIS if var.sensivel}
-    assert sensiveis == {"TELEGRAM_BOT_TOKEN", "WHATSAPP_TOKEN", "WHATSAPP_VERIFY_TOKEN"}
+    assert sensiveis == {
+        "TELEGRAM_BOT_TOKEN",
+        "WHATSAPP_TOKEN",
+        "WHATSAPP_VERIFY_TOKEN",
+        "WHATSAPP_APP_SECRET",
+    }
 
 
 # --------------------------------------------------------------------- leitura do .env

@@ -283,10 +283,10 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-401 passed in 28.05s
+405 passed in 31.74s
 ```
 
-**São 401 testes, e todos passam.** Distribuição por arquivo:
+**São 405 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
@@ -378,7 +378,7 @@ vazias, que é a lista oficial das variáveis.
 > **O `.env.example` está no repositório e é a lista oficial das variáveis.** Ele é **gerado** a
 > partir do catálogo do código (`app/config.py` → `VARIAVEIS`, 16 entradas) por
 > `tools/gerar_env_example.py` - nunca digitado à mão. A tabela abaixo é esse mesmo catálogo, e eu
-> conferi que os dois batem: **16 de 16 variáveis**, sem sobra de nenhum lado, e **nenhum valor de
+> conferi que os dois batem: **17 de 17 variáveis**, sem sobra de nenhum lado, e **nenhum valor de
 > segredo preenchido** no exemplo. Para conferir você mesmo:
 
 ```bash
@@ -388,10 +388,10 @@ vazias, que é a lista oficial das variáveis.
 Saída real desta máquina (`exit 0`):
 
 ```
-catalogo : app/config.py -> VARIAVEIS (16 variaveis)
+catalogo : app/config.py -> VARIAVEIS (17 variaveis)
 destino  : C:\...\squad-pecados\.env.example
 --------------------------------------------------------------------------
-PASSOU: .env.example em sincronia com o catalogo (16 variaveis, sha256 4f111a6026a949a6)
+PASSOU: .env.example em sincronia com o catalogo (17 variaveis, sha256 0946540270ce5639)
 ```
 
 Para começar a configurar, o caminho mais curto é:
@@ -411,7 +411,7 @@ CHAVE="valor"            # aspas simples ou duplas são removidas
 CHAVE=                   # vazio = NÃO CONFIGURADO (vale para variável obrigatória)
 ```
 
-#### As 16 variáveis, na ordem do catálogo
+#### As 17 variáveis, na ordem do catálogo
 
 **Obrigatória em:** `sempre` = sempre que a aplicação roda · `real` = todo modo real ·
 `real:telegram` / `real:whatsapp` = só quando aquele canal está em `CANAIS_ATIVOS`.
@@ -432,8 +432,9 @@ CHAVE=                   # vazio = NÃO CONFIGURADO (vale para variável obrigat
 | 12 | `WHATSAPP_TOKEN` | **Token de acesso do WhatsApp Cloud API**, do seu app na Meta. **SEGREDO.** | real:whatsapp | No **Meta for Developers**: seu app > WhatsApp > **API Setup** > *Access token*. | `WHATSAPP_TOKEN=EAAG...` |
 | 13 | `WHATSAPP_PHONE_NUMBER_ID` | **Identificador do número de WhatsApp Business** que recebe as mensagens. | real:whatsapp | No **Meta for Developers**: seu app > WhatsApp > **API Setup**, campo *Phone number ID*. | `WHATSAPP_PHONE_NUMBER_ID=123456789012345` |
 | 14 | `WHATSAPP_VERIFY_TOKEN` | Palavra-chave que a Meta usa para validar o webhook. **Você escolhe** e repete no painel da Meta. **SEGREDO.** | real:whatsapp | Você inventa uma palavra longa e cadastra a mesma em **Meta for Developers > WhatsApp > Configuration > Webhook**. | `WHATSAPP_VERIFY_TOKEN=uma-palavra-longa-sua` |
-| 15 | `WHATSAPP_API_BASE` | Endereço base da Graph API do WhatsApp. | não | Valor do Meta for Developers (padrão `https://graph.facebook.com/v21.0`). | `WHATSAPP_API_BASE=https://graph.facebook.com/v21.0` |
-| 16 | `WHATSAPP_WEBHOOK_DIR` | Pasta onde o receptor local do webhook grava os envelopes recebidos do WhatsApp. | não | Caminho no servidor, de preferência **fora** da árvore versionada. | `WHATSAPP_WEBHOOK_DIR=data/inbox_webhook/whatsapp` |
+| 15 | `WHATSAPP_APP_SECRET` | **App secret do app da Meta**, usado para conferir a assinatura `X-Hub-Signature-256` de cada webhook recebido pelo receptor local. **SEGREDO.** | não | No **Meta for Developers**: seu app > **Configurações do app** > Básico > *Chave secreta do app*. | `WHATSAPP_APP_SECRET=uma-chave-longa-sua` |
+| 16 | `WHATSAPP_API_BASE` | Endereço base da Graph API do WhatsApp. | não | Valor do Meta for Developers (padrão `https://graph.facebook.com/v21.0`). | `WHATSAPP_API_BASE=https://graph.facebook.com/v21.0` |
+| 17 | `WHATSAPP_WEBHOOK_DIR` | Pasta onde o receptor local do webhook grava os envelopes recebidos do WhatsApp. | não | Caminho no servidor, de preferência **fora** da árvore versionada. | `WHATSAPP_WEBHOOK_DIR=data/inbox_webhook/whatsapp` |
 
 #### Onde entram o número/token real - em uma resposta
 
@@ -788,10 +789,15 @@ por exemplo) é descartado com explicação.
 
 > **Limite honesto desta parte.** O receptor escuta em `127.0.0.1`: isso serve para uso **local**,
 > como o contrato pede. Para a Meta alcançar o receptor em produção é preciso **expor o endereço
-> em HTTPS** (domínio + certificado + liberação de firewall). Além disso, a **assinatura
-> `X-Hub-Signature-256`** dos webhooks da Meta **não é validada** nesta versão - ela exige o
-> *app secret*, que não está no catálogo de variáveis. Os dois pontos estão registrados como
-> pendência no relatório de fechamento.
+> em HTTPS** (domínio + certificado + liberação de firewall) - e esse ponto continua sendo do
+> ambiente do cliente.
+>
+> A **assinatura `X-Hub-Signature-256`** dos webhooks **é validada** desde que `WHATSAPP_APP_SECRET`
+> esteja no `.env`: o receptor confere o HMAC-SHA256 do corpo **bruto**, em tempo constante,
+> **antes** de gravar qualquer coisa, e responde **401 sem gravar** quando a assinatura falta ou
+> não confere. Sem o app secret, ele sobe com **aviso explícito na tela** e aceita o POST - é o
+> modo que permite a prova local sem credencial real, e por isso ele avisa alto em vez de fingir
+> que está seguro.
 
 ---
 
@@ -954,7 +960,7 @@ depende do cliente.
 comportamento na fronteira foi calibrado contra estes 20 artefatos. Com volume e variedade
 reais, esses limiares precisam ser reconferidos - e essa é uma decisão de produto, não de código.
 
-**7. A suíte de testes não cobre carga nem paralelismo.** São 401 testes de correção funcional,
+**7. A suíte de testes não cobre carga nem paralelismo.** São 405 testes de correção funcional,
 adversariais e ponta a ponta - e eles rodam em 28 s. **Não** existem testes de volume, de
 rajada de documentos simultâneos nem de nota fiscal multipágina: a própria frente de qualidade
 deixou esses casos de fora por não estarem no escopo exigido (AD-02, AD-12 e AD-13 do plano de
@@ -972,9 +978,10 @@ WhatsApp, nem de Telegram. O modo real existe e está pronto para receber as cre
 mas quem as fornece é o cliente: por isso a seção 7.2 termina com "onde obter cada valor".
 
 **10. O receptor de webhook está pronto para uso local, não para a internet.** Ele escuta em
-`127.0.0.1` e não valida a assinatura `X-Hub-Signature-256` dos webhooks da Meta (falta o *app
-secret* no catálogo de variáveis). Para receber webhook real em produção faltam três coisas do
-ambiente do cliente: **endereço público em HTTPS**, **certificado** e **liberação de firewall**.
+`127.0.0.1` e valida a assinatura `X-Hub-Signature-256` dos webhooks quando `WHATSAPP_APP_SECRET`
+está configurado (sem ele, aceita o POST com aviso explícito na tela). Para receber webhook real
+em produção faltam três coisas do ambiente do cliente: **endereço público em HTTPS**,
+**certificado** e **liberação de firewall**.
 
 ---
 
@@ -989,13 +996,13 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (401 testes) + RELATORIO-F5.md e evidencia/
+tests/        suíte pytest (405 testes) + RELATORIO-F5.md e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
               receber_webhook_whatsapp.py  receptor local do webhook do WhatsApp
               gerar_env_example.py         gera o .env.example a partir do catálogo
               verificar_producao.py        verificador de execução real (6 itens)
-.env.example  lista versionada das 16 variáveis, com as chaves vazias (gerada do código)
+.env.example  lista versionada das 17 variáveis, com as chaves vazias (gerada do código)
 requirements.txt  dependências, nas versões exatas instaladas no .venv
 ```
 
