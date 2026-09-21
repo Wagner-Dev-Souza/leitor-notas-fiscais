@@ -98,7 +98,9 @@ def extrair_caso(artefatos_ingeridos):
             a for a in artefatos_ingeridos if Path(a.caminho).resolve() == caminho.resolve()
         ]
         assert candidatos, f"nenhum artefato ingerido para {item['arquivo']}"
-        if candidatos[0].tipo_artefato == "pdf":
+        # Documento (PDF ou IMAGEM) tem texto lido na ingestao; so mensagem tem
+        # `artefato.mensagem` preenchido - numa imagem esse campo e None.
+        if candidatos[0].tipo_artefato in ("pdf", "imagem"):
             artefato = candidatos[0]
             return EX.extrair(artefato.texto, artefato.canal, str(caminho))
         alvo = [

@@ -70,6 +70,7 @@ from .contratos import (
     MensagemBruta,
     sha256_arquivo,
     sha256_bytes,
+    EXTENSOES_IMAGEM,
 )
 from .ingress import (
     TABELA_OCR,
@@ -990,8 +991,23 @@ def _confianca_geral(confianca_por_campo: dict, presentes: set[str]) -> float:
 
 
 def _modo_ocr(arquivo: Optional[str]) -> tuple[bool, float]:
+    """A leitura veio de OCR? `(ocr, confianca_de_leitura)`.
+
+    Tres casos:
+
+    * **imagem** (`.png`, `.jpg`, ...) - sempre OCR: imagem nao tem camada de texto, entao
+      quem le e o motor de OCR, por definicao. Sem isto a foto entrava com a confianca de
+      leitura NATIVA e podia ser aprovada automaticamente como se alguem tivesse lido o
+      texto do documento (defeito encontrado ao incluir a foto no corpus, caso B7);
+    * PDF com sidecar `<arquivo>.ocr.txt` - caminho simulado, confianca pela densidade de
+      confusoes (0,55..0,75);
+    * PDF sem sidecar - leitura nativa. (Quando o OCR REAL le um PDF, quem marca e o motor
+      do artefato, aplicado pelo pipeline.)
+    """
     if not arquivo:
         return False, 1.0
+    if Path(str(arquivo)).suffix.lower() in EXTENSOES_IMAGEM:
+        return True, 1.0
     sidecar = caminho_sidecar_ocr(arquivo)
     if sidecar.is_file():
         texto = sidecar.read_text(encoding="utf-8", errors="replace")

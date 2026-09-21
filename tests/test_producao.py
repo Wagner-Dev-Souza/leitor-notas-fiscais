@@ -24,6 +24,13 @@ import pytest
 from app import config as CFG
 from conftest import MOCKS, RAIZ_PROJETO
 
+# Total de itens do corpus sintetico (manifest = verdade de referencia). Derivado, para
+# nao haver numero magico a cada caso novo do gerador (a foto da nota, caso B7, entrou
+# como o 21o item).
+TOTAL_DO_CORPUS = len(
+    json.loads((RAIZ_PROJETO / "data" / "mocks" / "manifest.json").read_text(encoding="utf-8"))["itens"]
+)
+
 PYTHON_PROJETO = RAIZ_PROJETO / ".venv" / "Scripts" / "python.exe"
 PYTHON = str(PYTHON_PROJETO if PYTHON_PROJETO.is_file() else Path(sys.executable))
 
@@ -395,7 +402,7 @@ def test_mock_e_o_padrao_sem_env_e_nao_exige_credencial_nenhuma(tmp_path):
     )
     assert resultado.returncode == 0, f"STDOUT:\n{resultado.stdout}\nSTDERR:\n{resultado.stderr}"
     assert "Modo     : mock" in resultado.stdout
-    assert "Artefatos ingeridos : 20" in resultado.stdout
+    assert f"Artefatos ingeridos : {TOTAL_DO_CORPUS}" in resultado.stdout
     assert "Rodada concluida" in resultado.stdout
     for nome in ("controle_financeiro.xlsx", "controle_financeiro.csv", "auditoria.jsonl", "fila_excecoes.json"):
         assert (tmp_path / "out" / nome).is_file(), f"{nome} nao foi gerado na rodada mock"
@@ -574,6 +581,12 @@ def test_resumo_do_comando_unico_mostra_modo_e_trilha(tmp_path):
         assert trecho in resultado.stdout, f"o resumo perdeu a linha {trecho!r}"
 
     resumo = json.loads((tmp_path / "out" / "resumo.json").read_text(encoding="utf-8"))
-    assert resumo["artefatos"] == 20
-    assert resumo["auto_aprovados"] + resumo["revisao"] + resumo["rejeitados"] + resumo["deduplicados"] == 20
+    assert resumo["artefatos"] == TOTAL_DO_CORPUS
+    assert (
+        resumo["auto_aprovados"]
+        + resumo["revisao"]
+        + resumo["rejeitados"]
+        + resumo["deduplicados"]
+        == TOTAL_DO_CORPUS
+    )
     assert not any("TOKEN" in str(valor) for valor in resumo.values() if isinstance(valor, str))
