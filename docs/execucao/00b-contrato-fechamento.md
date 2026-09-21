@@ -21,7 +21,7 @@ operacao: **configuracao por `.env`, modo real, evidencia e documentacao de prod
    onde saem a planilha e a trilha de auditoria, acompanhar logs, agendar a execucao
    periodica, e o que fazer quando uma extracao falha (fila de excecoes / revisao humana).
 4. Modo mock continua sendo o PADRAO; o modo real liga pela configuracao do `.env`.
-5. Manter declarado no README o que ainda e simulado (OCR e os canais, hoje arquivos de
+5. Manter declarado no README o que ainda e simulado (os canais, hoje arquivos de
    mock com o envelope real das APIs).
 
 ## 2. Decisoes do PO (fechadas - nao reabrir sem pedido do cliente)
@@ -253,7 +253,7 @@ Se um deles precisar mudar, e decisao do PO.
 4. `.env.example` versionado existe e lista TODAS as variaveis do catalogo.
 5. Secao de producao do README responde aos 7 itens do pedido (item 3 do cliente).
 6. `git ls-files` nao mostra `.env` nem qualquer segredo; `.env` esta no `.gitignore`.
-7. README declara o que e simulado: OCR simulado e canais (mock com envelope real; coleta
+7. README declara o que e simulado: canais (mock com envelope real; coleta
    real implementada mas nao exercitada com credencial real).
 8. Nada de servico pago, chave nova, numero real ou push de segredo.
 9. Branch `squad-pecados` no `origin` com o trabalho (push feito pelo PO, apos a verificacao).

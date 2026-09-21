@@ -119,7 +119,7 @@ def test_conteudo_da_trilha_e_da_fila_do_comando_unico(python_venv, raiz):
         assert pendencia["detalhe"], "pendencia sem detalhe legivel"
 
 
-def test_ocr_simulado_esta_rotulado_na_trilha_do_comando_unico(python_venv, raiz):
+def test_ocr_esta_rotulado_na_trilha_do_comando_unico(python_venv, raiz):
     auditoria = OUT_PADRAO / "auditoria.jsonl"
     antes = _contar_linhas(auditoria)
     resultado = rodar_comando_unico(python_venv, raiz, "--mock")
@@ -131,13 +131,17 @@ def test_ocr_simulado_esta_rotulado_na_trilha_do_comando_unico(python_venv, raiz
         r for r in novas if str(r["artefato"]).endswith("FORN-BETA_nf_2003_escaneada.pdf")
     ]
     assert escaneado, "o PDF escaneado (caso B1) nao aparece na trilha"
-    assert escaneado[0]["motor"] == "ocr_simulado"
+    motor = escaneado[0]["motor"]
+    assert motor in ("ocr_simulado", "tesseract"), f"motor de OCR desconhecido na trilha: {motor}"
     assert escaneado[0]["ocr_usado"] is True
-    assert escaneado[0]["ocr_simulado"] is True, "OCR simulado apresentado sem rotulo"
+    assert escaneado[0]["ocr_simulado"] is (motor == "ocr_simulado"), "rotulo de OCR incoerente"
 
     resumo = json.loads((OUT_PADRAO / "resumo.json").read_text(encoding="utf-8"))
-    assert resumo["por_motor"].get("ocr_simulado", 0) >= 1
-    assert "OCR SIMULADO" in resumo["aviso_ocr"]
+    assert sum(resumo["por_motor"].get(m, 0) for m in ("ocr_simulado", "tesseract")) >= 1
+    if motor == "ocr_simulado":
+        assert "OCR SIMULADO" in resumo["aviso_ocr"]
+    else:
+        assert resumo["ocr_real_artefatos"] >= 1
 
 
 def test_comando_unico_com_diretorios_isolados_publica_so_os_validados(python_venv, raiz, tmp_path):

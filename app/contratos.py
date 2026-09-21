@@ -27,10 +27,13 @@ SCHEMA_VERSION = "1.0"
 
 # ---------------------------------------------------------------- enums de texto
 
+# Canal de entrada. `imagem` e o arquivo de imagem (foto/print de nota) que chega
+# pela pasta de documentos da inbox - o mesmo papel do PDF, lido por OCR.
 CANAL_PDF = "pdf"
+CANAL_IMAGEM = "imagem"
 CANAL_WHATSAPP = "whatsapp"
 CANAL_TELEGRAM = "telegram"
-CANAIS = (CANAL_PDF, CANAL_WHATSAPP, CANAL_TELEGRAM)
+CANAIS = (CANAL_PDF, CANAL_IMAGEM, CANAL_WHATSAPP, CANAL_TELEGRAM)
 
 TIPO_NF = "nf"
 TIPO_PEDIDO = "pedido"
@@ -155,7 +158,7 @@ class MensagemBruta:
 class Artefato:
     """Unidade de trabalho ingerida da inbox."""
 
-    tipo_artefato: str              # "pdf" | "mensagem"
+    tipo_artefato: str              # "pdf" | "imagem" | "mensagem"
     caminho: str
     canal: str
     hash_conteudo: str

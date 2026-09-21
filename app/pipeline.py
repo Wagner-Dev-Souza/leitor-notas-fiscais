@@ -223,6 +223,7 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
     contadores = {
         "artefatos": len(artefatos),
         "pdfs": 0,
+        "imagens": 0,
         "mensagens": 0,
         "auto_aprovados": 0,
         "revisao": 0,
@@ -240,6 +241,8 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
         for artefato in artefatos:
             if artefato.tipo_artefato == "pdf":
                 contadores["pdfs"] += 1
+            elif artefato.tipo_artefato == "imagem":
+                contadores["imagens"] += 1
             else:
                 contadores["mensagens"] += 1
             por_motor[artefato.motor] = por_motor.get(artefato.motor, 0) + 1
@@ -267,7 +270,9 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
                 continue
 
             # ------------------------------------------------------------ extracao
-            if artefato.tipo_artefato == "pdf":
+            # Imagem e DOCUMENTO, como o PDF: texto vem do OCR. So mensagem (WhatsApp/
+            # Telegram) tem `artefato.mensagem` - numa imagem esse campo e None.
+            if artefato.tipo_artefato in ("pdf", "imagem"):
                 extracao = extracao_mod.extrair(artefato.texto, artefato.canal, artefato.caminho)
             else:
                 extracao = extracao_mod.extrair_mensagem(artefato.mensagem)

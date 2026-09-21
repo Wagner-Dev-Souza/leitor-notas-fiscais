@@ -27,6 +27,8 @@ e, quando erra, ninguém percebe.
 Este sistema faz esse trabalho de leitura e digitação:
 
 - lê o PDF (inclusive nota **escaneada**, que não tem texto selecionável - ver limitações);
+- lê **imagem** (foto ou print da nota: `.png`, `.jpg`, `.jpeg`, `.webp`, `.tif`, `.bmp`), pelo
+  mesmo OCR real;
 - lê a mensagem de WhatsApp/Telegram e entende o pedido escrito em linguagem natural;
 - tira dali **fornecedor, CNPJ, número do pedido, datas, valor total e itens**;
 - **confere os números antes de acreditar neles** (a soma dos itens bate com o total? o CNPJ é
@@ -122,8 +124,27 @@ Confira que deu certo:
 ```
 
 Dependências de `requirements.txt`: `pypdf`, `pdfplumber` (leitura de PDF), `reportlab`
-(geração dos PDFs sintéticos), `openpyxl` (planilha `.xlsx`), `pytest` (testes) e `pillow`
-(geração do PDF escaneado).
+(geração dos PDFs sintéticos), `openpyxl` (planilha `.xlsx`), `pytest` (testes), `pillow`
+(geração do PDF escaneado e das imagens de teste) e `pytesseract` (ponte para o OCR real).
+
+**O OCR real depende de um binário que não vem pelo pip.** Instale o **Tesseract** na máquina:
+
+```bash
+winget install --id tesseract-ocr.tesseract -e      # Windows
+```
+
+Confira que ele está visível:
+
+```bash
+.venv/Scripts/python.exe -c "from app.ingress import localizar_tesseract; print(localizar_tesseract())"
+```
+
+Esse comando imprime o caminho do executável (ex.: `C:\Program Files\Tesseract-OCR\tesseract.exe`)
+ou `None`. Ele procura pelo `PATH`, pela variável `TESSERACT_CMD` e no local padrão de instalação -
+o instalador só registra o `PATH` para processos **novos**, e sem essa busca um processo já em
+execução (o gateway, a suíte) continuaria sem enxergar o binário. **Sem o Tesseract o produto não
+quebra:** ele cai no motor simulado (sidecar) para PDF escaneado, e a imagem entra sem texto, indo
+para a fila de revisão humana com o motivo `documento_ilegivel`.
 
 > **Regra do ambiente:** rode sempre com `.venv/Scripts/python.exe`. O `python` solto no PATH
 > pode ser outro ambiente, sem estas bibliotecas.
@@ -211,7 +232,7 @@ Saida    : data\out
 Banco    : data\out\pipeline.db
 Rodada   : 20260919-132634
 --------------------------------------------------------------
-Artefatos ingeridos : 20 (pdf 12 | mensagens 8)
+Artefatos ingeridos : 20 (pdf 12 | imagens 0 | mensagens 8)
 Auto-aprovados      : 7
 Em revisao humana   : 10
 Rejeitados          : 2
@@ -252,6 +273,20 @@ planilha - ficam na fila de pendências.
 > `Deduplicados: 20` e **`Linhas na planilha: 7`** - mesmo número de linhas, zero duplicata.
 > É assim que se prova a idempotência (seção 9).
 
+### Entrada por imagem (foto ou print da nota)
+
+A pasta de documentos da inbox (`<INBOX_DIR>/pdf/`) aceita PDF **e imagem** - não precisa separar
+por pasta. Jogue o arquivo lá e rode o mesmo comando de sempre:
+
+```bash
+.venv/Scripts/python.exe -m app.run --inbox data/inbox --out data/out
+```
+
+O artefato entra com `origem=imagem` e motor `tesseract` (o OCR real). Como a leitura de OCR recebe
+confiança **0,65**, ela fica abaixo do limiar de aprovação automática (**0,90**): **toda nota vinda
+de imagem vai para a fila de revisão humana**, já com os campos extraídos e o motivo escrito. É o
+desenho do produto - OCR não publica sozinho - e não um defeito.
+
 ### Verificação de idempotência (ferramenta do projeto)
 
 ```bash
@@ -283,10 +318,10 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-405 passed in 31.74s
+408 passed in 59.97s
 ```
 
-**São 405 testes, e todos passam.** Distribuição por arquivo:
+**São 408 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
@@ -420,7 +455,7 @@ CHAVE=                   # vazio = NÃO CONFIGURADO (vale para variável obrigat
 |---|---|---|---|---|---|
 | 1 | `MODO_EXECUCAO` | Como o produto roda: `mock` (dados sintéticos) ou `real` (coleta dos canais). | sempre | Você digita. As flags `--mock` / `--real` da linha de comando sobrepõem este valor. | `MODO_EXECUCAO=real` |
 | 2 | `CANAIS_ATIVOS` | Quais canais o modo real coleta, separados por vírgula (`whatsapp`, `telegram`). | real | Você digita, conforme os canais que conectou. Para ligar só um: `CANAIS_ATIVOS=telegram`. | `CANAIS_ATIVOS=whatsapp,telegram` |
-| 3 | `INBOX_DIR` | Pasta de entrada com as subpastas `pdf/`, `whatsapp/` e `telegram/`. | não | Caminho no servidor. **Deixe vazio** para usar o padrão do modo: `data/mocks` no mock, `data/inbox` no real. | `INBOX_DIR=` |
+| 3 | `INBOX_DIR` | Pasta de entrada com as subpastas `pdf/` (aceita PDF **e imagem**), `whatsapp/` e `telegram/`. | não | Caminho no servidor. **Deixe vazio** para usar o padrão do modo: `data/mocks` no mock, `data/inbox` no real. | `INBOX_DIR=` |
 | 4 | `OUT_DIR` | Pasta de saída: planilha, trilha de auditoria, fila de exceções e painel. | não | Caminho no servidor, com permissão de escrita para o usuário do serviço. | `OUT_DIR=data/out` |
 | 5 | `DB_PATH` | Arquivo SQLite do pipeline (a fonte da verdade do dado). | não | Caminho no servidor. **Deixe vazio** para usar `<OUT_DIR>/pipeline.db`. | `DB_PATH=` |
 | 6 | `LOG_DIR` | Pasta dos arquivos de log de execução. | não | Caminho no servidor, de preferência coberto pela rotação de logs do sistema. | `LOG_DIR=logs` |
@@ -506,7 +541,7 @@ Saida    : data\out
 Banco    : data\out\pipeline.db
 Rodada   : 20260919-140703
 --------------------------------------------------------------
-Artefatos ingeridos : 20 (pdf 12 | mensagens 8)
+Artefatos ingeridos : 20 (pdf 12 | imagens 0 | mensagens 8)
 Auto-aprovados      : 0
 Em revisao humana   : 0
 Rejeitados          : 0
@@ -812,7 +847,7 @@ interface do sistema.
 | 1 | `data_processamento` | Quando o sistema gravou (ou atualizou) essa linha. Data e hora com fuso. |
 | 2 | `documento_id` | Identificador interno do documento lido de onde a linha veio. |
 | 3 | `pedido_id` | Identificador do **pedido**. É a chave da linha: o mesmo pedido nunca ocupa duas linhas. |
-| 4 | `origem` | Por qual canal chegou: `pdf`, `whatsapp` ou `telegram`. |
+| 4 | `origem` | Por qual canal chegou: `pdf`, `imagem`, `whatsapp` ou `telegram`. |
 | 5 | `tipo_documento` | O que o documento é: `nf` (nota fiscal), `pedido` ou `desconhecido`. |
 | 6 | `numero_pedido` | O número do pedido/nota como está impresso no documento. |
 | 7 | `emitente_nome` | Razão social do fornecedor que emitiu. |
@@ -912,17 +947,19 @@ reescritos a cada rodada - eles representam o estado atual. A fonte da verdade �
 Estas são as fronteiras desta entrega. Nenhuma delas é detalhe: leia antes de avaliar o
 resultado.
 
-**1. O OCR é SIMULADO, e está rotulado como tal.** Não existe o motor Tesseract instalado nesta
-máquina. O PDF escaneado é resolvido por um motor **simulado**, que lê um arquivo de transcrição
-que fica ao lado do PDF (`<arquivo>.ocr.txt`), com erros de leitura parecidos com os de OCR real
-(troca `0`/`O`, `1`/`l`/`I`, `5`/`S`, `2`/`Z`). O motor aparece como **`ocr_simulado`** na trilha
-de auditoria, no resumo e no painel, e a rodada imprime o aviso:
-*"a leitura nao vem de motor de OCR real e esta marcada como simulada"*. **Portanto: a acurácia
-do OCR real ainda não foi medida.** Quando o Tesseract estiver disponível na máquina, o código
-já prefere o motor real automaticamente - mas isso ainda não foi testado com OCR de verdade.
-O que **está** provado é o caminho: o PDF escaneado entra, é reconhecido como imagem sem texto,
-passa pelo motor de OCR e sai com confiança menor (0,65 em vez de 0,95) e marcado para revisão
-humana - exatamente como deveria.
+**1. O OCR real ESTÁ instalado e em uso; o simulado virou o caminho de quem não tem o binário.**
+Esta máquina tem o **Tesseract 5.5.3** (instalador oficial, com o idioma `por`) e o pacote
+`pytesseract`. A ordem de leitura do produto é: **Tesseract real → sidecar `<arquivo>.ocr.txt`
+(simulado) → texto vazio, marcado para revisão humana**. O motor simulado continua existindo para
+quem não tem o binário e continua **rotulado como simulado** (`ocr_simulado`) na trilha, no resumo
+e no painel - nenhuma leitura se passa por nativa. A rasterização da página antes do OCR é de
+**300 dpi**: a 200 dpi o Tesseract perde a vírgula decimal dos itens (`2,35 17,50` sai
+`2,35 1750`) e a 400 dpi ou mais ele cola colunas - 300 é o ponto medido como correto nesta
+máquina. O que **está** provado: PDF escaneado e **imagem** entram, passam pelo OCR real, saem com
+a confiança de OCR (0,65 em vez de 0,95) e **vão para revisão humana** - nunca para a planilha sem
+conferência de uma pessoa. **O que ainda NÃO está medido:** acurácia de OCR em foto de nota de
+verdade (ângulo, sombra, papel amassado, celular na mão). O material deste repositório é sintético
+e limpo, e os limiares são os do desenho do produto, não calibrados contra foto real.
 
 **2. Os canais são mock com o envelope real - e a coleta real NÃO foi exercitada com credencial.**
 As mensagens usadas na demonstração são **arquivos de mock** (`data/mocks/whatsapp/*.jsonl`,
@@ -960,7 +997,7 @@ depende do cliente.
 comportamento na fronteira foi calibrado contra estes 20 artefatos. Com volume e variedade
 reais, esses limiares precisam ser reconferidos - e essa é uma decisão de produto, não de código.
 
-**7. A suíte de testes não cobre carga nem paralelismo.** São 405 testes de correção funcional,
+**7. A suíte de testes não cobre carga nem paralelismo.** São 408 testes de correção funcional,
 adversariais e ponta a ponta - e eles rodam em 28 s. **Não** existem testes de volume, de
 rajada de documentos simultâneos nem de nota fiscal multipágina: a própria frente de qualidade
 deixou esses casos de fora por não estarem no escopo exigido (AD-02, AD-12 e AD-13 do plano de
@@ -996,7 +1033,7 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (405 testes) + RELATORIO-F5.md e evidencia/
+tests/        suíte pytest (408 testes) + RELATORIO-F5.md, test_imagem.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
               receber_webhook_whatsapp.py  receptor local do webhook do WhatsApp

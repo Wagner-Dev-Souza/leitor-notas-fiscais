@@ -44,7 +44,15 @@ jobs:
       - name: Instalar as dependencias fixadas
         run: .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check -r requirements.txt
 
-      - name: Suite de testes (401 testes)
+      - name: Instalar o Tesseract (OCR real) com o idioma portugues
+        # Mesmo pacote validado na maquina de desenvolvimento (Tesseract 5.5.3, idioma
+        # `por`). Sem o binario, os testes de leitura de imagem sao pulados e o caminho
+        # de OCR real nao e exercitado no CI.
+        run: |
+          winget install --id tesseract-ocr.tesseract -e --accept-package-agreements --accept-source-agreements --disable-interactivity
+          & "C:\Program Files\Tesseract-OCR\tesseract.exe" --list-langs
+
+      - name: Suite de testes (suite completa)
         run: .\.venv\Scripts\python.exe -m pytest -q
 
       - name: Prova de idempotencia (pipeline roda 2x, zero duplicata)
