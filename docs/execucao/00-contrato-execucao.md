@@ -169,7 +169,12 @@ def ingerir(inbox) -> list[Artefato]        # varre data/mocks e devolve artefat
 
 # app/extracao.py  (avareza)
 def classificar(texto) -> str               # 'nf' | 'pedido' | 'desconhecido'
-def extrair(texto, origem_canal, arquivo=None) -> Extracao
+def extrair(texto, origem_canal, arquivo=None, motor=None) -> Extracao
+#   Emenda do PO (2026-09-21): `motor` e OPCIONAL (compativel com todas as chamadas
+#   existentes) e diz QUEM leu o texto: `pdfplumber`/`pypdf`/`parser`/`ocr_simulado`/
+#   `tesseract`. E o que permite a extracao reconhecer leitura de OCR quando ela vem do
+#   motor REAL - PDF escaneado sem sidecar, ou imagem - e pontuar os campos com a base de
+#   OCR (0,65) em vez da base nativa (0,95). O pipeline repassa o motor do artefato.
 def extrair_mensagem(msg: MensagemBruta) -> Extracao
 
 # app/normaliza.py  (gula)
