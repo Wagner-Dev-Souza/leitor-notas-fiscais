@@ -21,6 +21,8 @@ Regras de trabalho respeitadas:
   `git status --porcelain` (leitura).
 * Tudo roda em **diretorio temporario proprio**; este script **nao escreve em `data/`** -
   e prova isso comparando o retrato de `data/` antes e depois (a prova sai no resumo).
+  O unico ponto fora do retrato e `data/out/`: isso e **saida de rodada**, e o check 1 roda
+  o comando congelado `app.run --mock`, cujo trabalho e justamente regrava-la.
 * Nao reimplementa a logica de configuracao: quem valida e o `app/run.py` de verdade.
   Comportamento ausente no codigo = check FALHANDO (e a informacao que o cliente quer).
 * Nenhum valor de segredo aparece na saida: os valores ficticios usados nos checks moram em
@@ -70,9 +72,19 @@ PASTAS_SINTETICAS = ("data/mocks/",)
 # Marcadores que dizem "isto e exemplo, nao e segredo de verdade".
 MARCADORES_PLACEHOLDER = re.compile(
     r"(fake|fictic|dummy|placeholder|exemplo|exemplo-|teste|test-|nao-e-segredo|troque|"
-    r"seu-|minha-|xxx|aaaa|1111|1234567890)",
+    r"seu-|minha-|xxx|aaaa|1111|1234567890|"
+    r"nao[-_ ]?pode[-_ ]?aparecer|nao[-_ ]?vaza|apenas|somente|so[-_ ]?para|mascar|"
+    r"prova|redacted|redigid)",
     re.IGNORECASE,
 )
+
+# Valor que e nome de variavel (Python) e REFERENCIA, nao segredo: `TELEGRAM_BOT_TOKEN=
+# TOKEN_TELEGRAM` nos testes aponta para a constante; o literal esta em outro lugar.
+VALOR_E_REFERENCIA = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# Mesmo criterio da suite: caractere repetido 6+ vezes e numero/valor de exemplo, nao
+# credencial de verdade (credencial real tem entropia).
+VALOR_REPETIDO = re.compile(r"(.)\1{5,}")
 LINHA_ATRIBUICAO_SENSIVEL = re.compile(
     r"^\s*(?:export\s+)?(" + "|".join(SENSIVEIS) + r")\s*=\s*(\S.*)$"
 )
@@ -131,18 +143,33 @@ def git(*argumentos: str) -> subprocess.CompletedProcess:
 
 
 def retrato_data() -> dict:
-    """Retrato de cheap de data/: (tamanho, mtime_ns) por arquivo."""
+    """Retrato de cheap de data/: (tamanho, mtime_ns) por arquivo.
+
+    `data/out/` fica **fora** do retrato de proposito: e a saida da rodada, e o check 1 roda
+    o comando congelado `app.run --mock`, que regrava planilha, trilha, fila, painel e banco
+    ali - e o trabalho dele. Cobrar do script que ele nao reescreva a propria saida dava
+    `data/ intacto: False` com os 6 checks passando, e o verificador saia com codigo 1
+    (defeito relatado na fase anterior e corrigido aqui).
+
+    O que o retrato protege e o material que **nao** pode mudar sozinho: `data/mocks/`
+    (corpus sintetico) e todo o resto de `data/`.
+    """
     raiz = RAIZ / "data"
+    saida_de_rodada = (raiz / "out").resolve()
     retrato: dict[str, tuple[int, int]] = {}
     if not raiz.is_dir():
         return retrato
     for caminho in sorted(raiz.rglob("*")):
-        if caminho.is_file():
-            try:
-                info = caminho.stat()
-            except OSError:
+        if not caminho.is_file():
+            continue
+        try:
+            resolvido = caminho.resolve()
+            if resolvido == saida_de_rodada or saida_de_rodada in resolvido.parents:
                 continue
-            retrato[caminho.relative_to(RAIZ).as_posix()] = (info.st_size, info.st_mtime_ns)
+            info = caminho.stat()
+        except OSError:
+            continue
+        retrato[caminho.relative_to(RAIZ).as_posix()] = (info.st_size, info.st_mtime_ns)
     return retrato
 
 
@@ -323,8 +350,14 @@ def check_4_modo_real_sem_credencial(tmp: Path, python: str) -> tuple[bool, str,
 
 
 def _classificar_ocorrencia(caminho: str, linha: str, achado: str) -> str:
-    """'placeholders' sao exemplos declarados; o resto e ocorrencia real."""
+    """'placeholder' e exemplo declarado; 'suspeito' e ocorrencia com cara de real.
+
+    Nao ha filtro por arquivo: o criterio olha o VALOR e a linha. Credencial de verdade
+    (entropia real, sem marcador, sem repeticao) continua reprovando.
+    """
     if MARCADORES_PLACEHOLDER.search(linha) or MARCADORES_PLACEHOLDER.search(achado):
+        return "placeholder"
+    if VALOR_REPETIDO.search(achado):
         return "placeholder"
     return "suspeito"
 
@@ -395,7 +428,13 @@ def check_5_varredura_segredo(tmp: Path, python: str) -> tuple[bool, str, list[s
 
             atribuicao = LINHA_ATRIBUICAO_SENSIVEL.match(linha)
             if atribuicao:
-                valor = atribuicao.group(2).strip().strip("'\"")
+                # tira o que e sintaxe de chamada (`VAR=VALOR,`) para olhar o VALOR
+                valor = atribuicao.group(2).strip().strip("'\"").rstrip(",").strip()
+                # `VAR=SENSIVEL` onde SENSIVEL e o nome de uma constante do codigo nao e
+                # valor preenchido: e referencia. O literal, se existir, e avaliado na
+                # propria linha em que aparece.
+                if VALOR_E_REFERENCIA.match(valor):
+                    valor = ""
                 if valor:
                     registro = (f"{relativo}:{numero_linha} "
                                 f"[{atribuicao.group(1)} com valor preenchido em arquivo "
@@ -546,7 +585,8 @@ def main(argv: list[str] | None = None) -> int:
     print("=" * 78)
     print(f"projeto  : {RAIZ}")
     print(f"python   : {python}")
-    print(f"data/    : retrato tirado antes e conferido depois (este script nao escreve la)")
+    print("data/    : retrato tirado antes e conferido depois (este script nao escreve la; "
+          "data/out e saida de rodada e fica fora do retrato)")
     print("-" * 78)
 
     antes = retrato_data()
