@@ -61,6 +61,13 @@ EXTENSOES_IMAGEM = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
 
 IDIOMA_OCR = "por"
 
+# Ordem de preferencia de idioma. O Tesseract RECUSA um idioma que nao tem instalado, e o
+# instalador oficial do Windows vem so com `eng` + `osd` por padrao: pedir `por` num parque
+# sem o pacote de portugues dava leitura VAZIA. Ler uma nota brasileira em ingles e pior que
+# ler em portugues - e muito melhor que nao ler nada. O motor continua rotulado `tesseract`
+# e a confianca de OCR (0,65) ja manda o documento para revisao humana.
+IDIOMAS_OCR = ("por", "eng")
+
 # Resolucao (dpi) da rasterizacao da pagina antes do OCR. Ver a nota em `_ocr_tesseract`.
 RESOLUCAO_OCR_DPI = 300
 
@@ -246,6 +253,18 @@ def localizar_tesseract() -> Optional[str]:
     return None
 
 
+def idioma_ocr(pytesseract_mod) -> str:
+    """Primeiro idioma disponivel na maquina: `por` se houver, senao `eng`."""
+    try:
+        disponiveis = set(pytesseract_mod.get_languages(config=""))
+    except Exception:
+        return IDIOMAS_OCR[0]
+    for idioma in IDIOMAS_OCR:
+        if idioma in disponiveis:
+            return idioma
+    return IDIOMAS_OCR[0]
+
+
 def _tesseract_imagem(caminho: Path) -> Optional[TextoExtraido]:
     """Tesseract real sobre uma imagem. None quando o motor nao existe na maquina."""
     try:
@@ -257,7 +276,7 @@ def _tesseract_imagem(caminho: Path) -> Optional[TextoExtraido]:
         return None
 
     try:
-        texto = pytesseract.image_to_string(str(caminho), lang=IDIOMA_OCR) or ""
+        texto = pytesseract.image_to_string(str(caminho), lang=idioma_ocr(pytesseract)) or ""
     except Exception:
         return None
 
@@ -321,7 +340,7 @@ def _ocr_tesseract(caminho: Path) -> Optional[TextoExtraido]:
                 # sai "2,35 1750") e a extracao perde a soma; 400 dpi ou mais funde
                 # colunas ("V.UNITARIO" colado na QTD). 300 e o ponto medido como correto.
                 imagem = pagina.to_image(resolution=RESOLUCAO_OCR_DPI).original
-                textos.append(pytesseract.image_to_string(imagem, lang=IDIOMA_OCR) or "")
+                textos.append(pytesseract.image_to_string(imagem, lang=idioma_ocr(pytesseract)) or "")
         texto = "\n".join(textos)
     except Exception:
         return None
