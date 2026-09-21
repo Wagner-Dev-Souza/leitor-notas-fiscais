@@ -1,0 +1,33 @@
+==============================================================================
+VERIFICADOR DE PRODUCAO - tools/verificar_producao.py (F9 / preguica)
+contrato: docs/execucao/00b-contrato-fechamento.md secao 3.5
+==============================================================================
+projeto  : <local>                                                            
+python   : <local>                                                            \.venv\Scripts\python.exe
+data/    : retrato tirado antes e conferido depois (este script nao escreve la)
+------------------------------------------------------------------------------
+temporario: <local>
+------------------------------------------------------------------------------
+[1/6] .env.example presente, versionado e em sincronia com o catalogo
+        PASSOU: 16 variaveis do catalogo presentes e em sincronia | AVISO: ainda nao esta no indice do git - o PO versiona nesta onda (nao ignorado, entao entra)
+
+[2/6] nenhum .env real versionado e .env no .gitignore
+        PASSOU: nenhum .env versionado; '.env' ignorado pelo git
+
+[3/6] modo mock continua sendo o padrao (sem .env, roda e nao exige segredo)
+        PASSOU: sem .env o padrao e mock, roda e nao pede credencial nenhuma
+
+[4/6] modo real sem as obrigatorias -> mensagem clara, sem traceback, sem rodar pipeline
+        PASSOU: codigo 2, citou as 5 variaveis faltantes pelo nome, sem traceback e sem rodar o pipeline
+
+[5/6] varredura de segredo em arquivo versionado (inclusive .env.example)
+        PASSOU: 160 arquivos versionados varridos: nenhum segredo e nenhum numero fora do material sintetico (13 numeros ficticios declarados reencontrados, 3 placeholders de exemplo)
+
+[6/6] `.env` de teste com valores ficticios -> --check-config reconhece e mascara
+        PASSOU: configuracao ficticia aceita (exit 0) e os 3 valores sensiveis mascarados na saida
+
+------------------------------------------------------------------------------
+data/ intacto (retrato de 84 arquivos, tamanho e mtime): False
+  ATENCAO: mudou ['data/out/auditoria_rodada_20260919-141057.jsonl', 'data/out/pipeline.db-shm', 'data/out/pipeline.db-wal']
+RESULTADO: 6/6 PASSOU
+==============================================================================
