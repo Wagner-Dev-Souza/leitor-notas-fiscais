@@ -287,3 +287,27 @@ Os documentos 01 e 04 divergem no alvo de deploy (SQLite+container unico vs VPS 
 Redis/MinIO). Para **esta entrega** o alvo e o recomendado pelo doc 01 e autorizado pelo
 cliente: **processo local unico + SQLite**, sem Docker, sem servico pago, sem rede em runtime.
 A divergencia continua aberta para a fase de producao - nao a resolva aqui.
+
+## 11. Emenda do PO (2026-09-21): recorte do valor em moeda
+
+Achado em **uso real**: mensagem com `total R$ 1986,50` era lida como **986,50**. O padrao de
+recorte (`RE_MOEDA_BR`/`RE_MOEDA_US`) exigia o separador de milhar e, sem ele, comecava a casar no
+**meio** do numero, devolvendo os 3 ultimos digitos - numero errado, plausivel e **sem marca de
+suspeita**, o que contraria a regra "nao inventa numero" (a revisao humana nao desconfiaria, porque
+o valor parece normal).
+
+Regra nova, autorizada pelo PO em 21/09/2026:
+
+- o recorte exige **fronteira de numero** dos dois lados (`(?<!\d)` ... `(?!\d)`): nao pode comecar
+  nem terminar no meio de uma sequencia de digitos;
+- inteiro **sem** separador de milhar passa a ser aceito (`1986,50` -> 1.986,50; `45678,90` ->
+  45.678,90), ate 7 digitos; havendo ponto de milhar, o grupo tem de estar completo (`1.986,50`,
+  `1.234.567,89`);
+- o normalizador (`app/normaliza.py`) **nao muda**: sempre esteve correto - o defeito era so no
+  recorte;
+- efeito colateral desejado: quantidade com quatro decimais (`50,0000 UN`) e correntes longas de
+  digitos (numero de processo, chave de acesso) deixam de ser lidas como dinheiro.
+
+Testes que pinam: `tests/test_extracao.py::test_valor_sem_separador_de_milhar_nao_perde_digito`
+(7 casos), `::test_quantidade_com_quatro_decimais_nao_e_lida_como_dinheiro` e
+`::test_valor_no_meio_de_corrente_de_digitos_nao_casa`.

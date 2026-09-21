@@ -144,8 +144,13 @@ def _trecho(linha_orig: str, ini: int, fim: int) -> str:
     return linha_orig[ini:fim].strip()
 
 
-RE_MOEDA_BR = re.compile(r"(?:R\$\s*)?\d{1,3}(?:\.\d{3})*,\d{2}")
-RE_MOEDA_US = re.compile(r"(?:R\$\s*)?\d{1,3}(?:\.\d{3})*\.\d{2}")
+# Moeda: a fronteira `(?<!\d)` / `(?!\d)` e o que impede o recorte de comecar no MEIO de um
+# numero. Sem ela, "R$ 1986,50" (sem ponto de milhar) casava so os 3 ultimos digitos e devolvia
+# 986,50 - numero errado, plausivel, e sem marcar suspeita (achado em uso real, 21/09/2026).
+# O segundo ramo (`\d{1,7}`) aceita inteiro sem separador; o primeiro exige o milhar completo
+# quando ha ponto. A fronteira depois tambem impede ler a quantidade "50,0000" como dinheiro.
+RE_MOEDA_BR = re.compile(r"(?<!\d)(?:R\$\s*)?(?:\d{1,3}(?:\.\d{3})+|\d{1,7}),\d{2}(?!\d)")
+RE_MOEDA_US = re.compile(r"(?<!\d)(?:R\$\s*)?(?:\d{1,3}(?:\.\d{3})+|\d{1,7})\.\d{2}(?!\d)")
 RE_DATA = re.compile(
     r"\d{4}-\d{2}-\d{2}"
     r"|\d{1,2}/\d{1,2}/\d{2,4}"

@@ -304,14 +304,14 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-428 passed in 78.30s (0:01:16)
+437 passed in 79.93s (0:01:16)
 ```
 
-**São 428 testes, e todos passam.** Distribuição por arquivo:
+**São 437 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
-| `tests/test_extracao.py` | 198 | Extração contra o `manifest.json`, campo a campo: número do pedido, CNPJ, chave de acesso, datas, valor total, valor unitário e descrição de cada item, mais o status e os motivos esperados de cada documento. |
+| `tests/test_extracao.py` | 219 | Extração contra o `manifest.json`, campo a campo: número do pedido, CNPJ, chave de acesso, datas, valor total, valor unitário e descrição de cada item, mais o status e os motivos esperados de cada documento. |
 | `tests/test_config.py` | 70 | Leitura e validação do `.env`: sintaxe tolerada, variável obrigatória ausente, catálogo, mensagem de erro por variável, mascaramento do segredo. |
 | `tests/test_normalizacao.py` | 57 | CNPJ e chave de 44 dígitos com dígito verificador válido (passam) e torto (rejeitados); `R$ 1.234,56` -> `123456` sempre inteiro; datas em vários formatos -> ISO, com marcação de ambiguidade; entradas vazias, lixo e `None`. |
 | `tests/test_canais.py` | 33 | Coleta dos canais contra stub HTTP local: envelope do Telegram gravado, filtro por chat, falha de credencial virando erro claro sem imprimir o token, leitura do webhook do WhatsApp. |
@@ -1045,7 +1045,7 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (428 testes) + RELATORIO-F5.md, test_imagem.py,
+tests/        suíte pytest (437 testes) + RELATORIO-F5.md, test_imagem.py,
               test_multipagina.py, test_rajada.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)

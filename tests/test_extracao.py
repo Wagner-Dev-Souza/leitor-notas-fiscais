@@ -302,3 +302,42 @@ def test_pdf_escaneado_com_motor_de_ocr_usa_confianca_de_ocr(tmp_path):
     )
     status, _motivos = PE.decidir(real)
     assert status == "revisao_humana", "leitura de OCR nao pode aprovar sozinha"
+
+# ------------------------------------------------- valor: sem separador de milhar
+#
+# Achado em uso real (21/09/2026): mensagem com "total R$ 1986,50" era lida como 986,50. O
+# padrao exigia o ponto de milhar e, sem ele, recortava so os 3 ultimos digitos - numero errado,
+# plausivel e sem marca de suspeita. Estes casos pinam a correcao.
+
+CASOS_VALOR_SEM_SEPARADOR = [
+    ("PEDIDO N: 7509 da Alfa, total R$ 1986,50.", 198650),
+    ("PEDIDO N: 7509 da Alfa, total R$ 45678,90.", 4567890),
+    ("PEDIDO N: 7509 da Alfa, total R$ 986,50.", 98650),
+    ("PEDIDO N: 7509 da Alfa, total R$ 250,00, pagamento por PIX.", 25000),
+    ("PEDIDO N: 7509 da Alfa, total R$ 830,80. Aprovado.", 83080),
+    ("PEDIDO N: 7509 da Alfa, total R$ 1.986,50.", 198650),
+    ("PEDIDO N: 7509 da Alfa, total R$ 1.234.567,89.", 123456789),
+]
+
+
+@pytest.mark.parametrize("texto,esperado", CASOS_VALOR_SEM_SEPARADOR)
+def test_valor_sem_separador_de_milhar_nao_perde_digito(texto, esperado):
+    from app import extracao as EX
+
+    assert EX.extrair(texto, "mensagem").valor_total_centavos == esperado
+
+
+def test_quantidade_com_quatro_decimais_nao_e_lida_como_dinheiro():
+    """`50,0000 UN` e quantidade de item, nao valor: o recorte nao pode pegar "50,00" ali."""
+    from app import extracao as EX
+
+    extracao = EX.extrair("PEDIDO N: 7509, item CANETA ESFEROGRAFICA 50,0000 UN.", "mensagem")
+    assert extracao.valor_total_centavos is None
+
+
+def test_valor_no_meio_de_corrente_de_digitos_nao_casa():
+    """Sequencia longa de digitos (processo, chave) nao e valor - nao pode virar total."""
+    from app import extracao as EX
+
+    extracao = EX.extrair("PEDIDO N: 7509, processo 20260001234567890,12.", "mensagem")
+    assert extracao.valor_total_centavos is None
