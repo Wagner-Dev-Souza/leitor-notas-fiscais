@@ -58,6 +58,11 @@ jobs:
       - name: Suite de testes (suite completa)
         run: .\.venv\Scripts\python.exe -m pytest -q
 
+      - name: Verificador de producao (6 checks com execucao real)
+        # Portao de proposito: o verificador ja imprimiu "6/6 PASSOU" saindo com codigo 1.
+        # Rodar aqui impede que o exit code volte a divergir do resultado impresso.
+        run: .\.venv\Scripts\python.exe tools/verificar_producao.py
+
       - name: Prova de idempotencia (pipeline roda 2x, zero duplicata)
         run: .\.venv\Scripts\python.exe tools/verificar.py
 

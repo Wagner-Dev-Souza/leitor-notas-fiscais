@@ -318,10 +318,10 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-408 passed in 59.97s
+414 passed in 66.50s
 ```
 
-**São 408 testes, e todos passam.** Distribuição por arquivo:
+**São 414 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
@@ -997,13 +997,20 @@ depende do cliente.
 comportamento na fronteira foi calibrado contra estes 20 artefatos. Com volume e variedade
 reais, esses limiares precisam ser reconferidos - e essa é uma decisão de produto, não de código.
 
-**7. A suíte de testes não cobre carga nem paralelismo.** São 408 testes de correção funcional,
-adversariais e ponta a ponta - e eles rodam em 28 s. **Não** existem testes de volume, de
-rajada de documentos simultâneos nem de nota fiscal multipágina: a própria frente de qualidade
-deixou esses casos de fora por não estarem no escopo exigido (AD-02, AD-12 e AD-13 do plano de
-testes). Ou seja: **a suíte prova que o comportamento está certo, não que ele se sustenta sob
-carga.** Combinado com a limitação 8, isso é o que ainda separa esta entrega de um uso em
-produção.
+**7. A suíte cobre carga e nota multipágina; NÃO cobre paralelismo.** São os testes de correção
+funcional, adversariais e ponta a ponta, mais dois casos que antes ficavam de fora do escopo
+(AD-02 e AD-12 do plano de testes):
+
+- **nota fiscal multipágina** (`tests/test_multipagina.py`): documento de 2 páginas, com 3 itens
+  na primeira e 2 na segunda. Prova que o item da página 2 não é perdido e que a soma fecha.
+- **rajada de volume** (`tests/test_rajada.py`): 120 artefatos numa rodada (90 notas em PDF + 30
+  mensagens), com a contabilidade fechando e a segunda rodada deduplicando tudo. Medido nesta
+  máquina: **3,1 s** para os 120 (o teto declarado no teste é 180 s).
+
+O que **continua fora**: documento de 2 páginas com 30 itens, rajada de centenas de milhares de
+documentos e **paralelismo** - o alvo do produto é processo local único + SQLite (limitação 8),
+então não há teste de execução concorrente porque não há execução concorrente. Junto com a
+limitação 8, é isso que ainda separa esta entrega de um uso em produção.
 
 **8. Um comando, uma máquina.** O alvo desta entrega é **processo local único + SQLite**, sem
 Docker, sem serviço pago, sem banco de dados em rede. Rodar em produção com volume, multiusuário
@@ -1033,7 +1040,8 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (408 testes) + RELATORIO-F5.md, test_imagem.py e evidencia/
+tests/        suíte pytest (414 testes) + RELATORIO-F5.md, test_imagem.py,
+              test_multipagina.py, test_rajada.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
               receber_webhook_whatsapp.py  receptor local do webhook do WhatsApp
