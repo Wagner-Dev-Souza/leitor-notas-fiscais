@@ -441,7 +441,24 @@ def recuperar_texto_ocr(trecho: str) -> str:
             palavra = palavra.replace("l", "I")
         return palavra
 
-    return RE_PALAVRA.sub(_palavra, trecho)
+    return limpar_ruido_ocr(RE_PALAVRA.sub(_palavra, trecho))
+
+
+# Ruido tipografico do OCR real: aspas curvas soltas, aspas retas, crase, acento agudo
+# solto, asterisco e barra vertical. Nao existem no documento - sao sujeira do motor.
+# Medido na NF escaneada do corpus com Tesseract 5.5.3 rasterizando a 300 dpi: o nome do
+# emitente saia com uma aspa curva na frente e a descricao do item, com uma no fim.
+# O texto da EVIDENCIA continua literal; aqui se limpa o VALOR extraido.
+_RUIDO_OCR = str.maketrans(
+    {c: " " for c in "\u201c\u201d\u2018\u2019\"\'`\u00b4*|\u00ab\u00bb"}
+)
+
+
+def limpar_ruido_ocr(texto: str) -> str:
+    """Tira o ruido tipografico do OCR e normaliza espacos do valor extraido."""
+    if not texto:
+        return texto
+    return " ".join(texto.translate(_RUIDO_OCR).split())
 
 
 # ------------------------------------------------------------------- extratores

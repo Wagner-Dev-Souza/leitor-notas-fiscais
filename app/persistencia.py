@@ -369,9 +369,14 @@ def registrar_documento(conn: sqlite3.Connection, artefato: Any) -> tuple[str, b
         if linha is not None:
             return (linha["id"], True)
 
-    # 3) mesmo conteudo em arquivo diferente (so PDF com texto substancial: evita
-    #    colidir mensagens curtas e legitimamente iguais)
-    if texto_norm and getattr(artefato, "tipo_artefato", "") == "pdf" and len(texto.strip()) >= 200:
+    # 3) mesmo conteudo em arquivo diferente (PDF ou imagem com texto substancial: evita
+    #    colidir mensagens curtas e legitimamente iguais). E por aqui que a MESMA nota
+    #    chegando como PDF e como foto vira uma linha so - os bytes diferem, o texto nao.
+    if (
+        texto_norm
+        and getattr(artefato, "tipo_artefato", "") in ("pdf", "imagem")
+        and len(texto.strip()) >= 200
+    ):
         linha = conn.execute(
             "SELECT id FROM documentos WHERE texto_norm_sha256 = ? LIMIT 1", (texto_norm,)
         ).fetchone()
