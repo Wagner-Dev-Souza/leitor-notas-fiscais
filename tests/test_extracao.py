@@ -259,3 +259,46 @@ def test_b6_item_sem_valor_unitario_nao_inventa_preco(decisoes):
     assert servico[0].valor_total_centavos is None
     assert extracao.soma_itens_centavos() is None
     assert status == "revisao_humana"
+
+
+# --------------------------------------------------------------------- OCR real
+
+
+def _texto_da_nf_nativa() -> str:
+    """Texto real de uma NF do corpus (leitura nativa), para isolar o efeito do motor."""
+    import pdfplumber
+
+    with pdfplumber.open(str(RAIZ / "data" / "mocks" / "pdf" / "FORN-ALFA_nf_1001.pdf")) as pdf:
+        return "\n".join((pagina.extract_text() or "") for pagina in pdf.pages)
+
+
+def test_pdf_escaneado_com_motor_de_ocr_usa_confianca_de_ocr(tmp_path):
+    """PDF SEM sidecar lido por OCR real: a confianca por campo tem de ser de OCR.
+
+    Antes o motor nao chegava a extracao. Sem sidecar (`<arquivo>.ocr.txt`), ela concluia
+    "leitura nativa" e pontuava os campos com a base nativa (0,95) - otimista para um texto
+    que veio de OCR. Agora quem leu acompanha a extracao, e o pipeline repassa o motor do
+    artefato. Mesmo arquivo e mesmo texto: so o motor muda.
+    """
+    from app import extracao as EX
+    from app import persistencia as PE
+    from app.contratos import CANAL_PDF, LIMIAR_AUTO_APROVACAO, MOTOR_TESSERACT
+    from conftest import pdf_de_imagem_sem_texto
+
+    texto = _texto_da_nf_nativa()
+    alvo = pdf_de_imagem_sem_texto(tmp_path / "escaneada_sem_sidecar.pdf")
+
+    nativo = EX.extrair(texto, CANAL_PDF, str(alvo))
+    real = EX.extrair(texto, CANAL_PDF, str(alvo), motor=MOTOR_TESSERACT)
+
+    assert nativo.ocr_usado is False, "sem motor de OCR e sem sidecar, a leitura e nativa"
+    assert real.ocr_usado is True, "motor de OCR tem de marcar a leitura como OCR"
+    assert real.motor == MOTOR_TESSERACT
+    assert real.confianca_geral < nativo.confianca_geral, (
+        "leitura de OCR nao pode confiar o mesmo que leitura nativa"
+    )
+    assert real.confianca_geral < LIMIAR_AUTO_APROVACAO, (
+        "confianca de OCR nao pode alcancar o limiar de aprovacao automatica"
+    )
+    status, _motivos = PE.decidir(real)
+    assert status == "revisao_humana", "leitura de OCR nao pode aprovar sozinha"

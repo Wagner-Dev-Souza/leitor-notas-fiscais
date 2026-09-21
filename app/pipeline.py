@@ -273,7 +273,9 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
             # Imagem e DOCUMENTO, como o PDF: texto vem do OCR. So mensagem (WhatsApp/
             # Telegram) tem `artefato.mensagem` - numa imagem esse campo e None.
             if artefato.tipo_artefato in ("pdf", "imagem"):
-                extracao = extracao_mod.extrair(artefato.texto, artefato.canal, artefato.caminho)
+                extracao = extracao_mod.extrair(
+                    artefato.texto, artefato.canal, artefato.caminho, motor=artefato.motor
+                )
             else:
                 extracao = extracao_mod.extrair_mensagem(artefato.mensagem)
 

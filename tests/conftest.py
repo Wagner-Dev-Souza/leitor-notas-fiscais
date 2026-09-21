@@ -102,7 +102,11 @@ def extrair_caso(artefatos_ingeridos):
         # `artefato.mensagem` preenchido - numa imagem esse campo e None.
         if candidatos[0].tipo_artefato in ("pdf", "imagem"):
             artefato = candidatos[0]
-            return EX.extrair(artefato.texto, artefato.canal, str(caminho))
+            # o motor acompanha a extracao, como no pipeline real: e o que diz que a
+            # leitura veio de OCR num PDF escaneado lido pelo motor de verdade
+            return EX.extrair(
+                artefato.texto, artefato.canal, str(caminho), motor=artefato.motor
+            )
         alvo = [
             a
             for a in candidatos

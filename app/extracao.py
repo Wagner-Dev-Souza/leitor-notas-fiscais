@@ -3,7 +3,7 @@
 Dono: avareza (F1 - nucleo). Fronteira congelada na secao 5 do contrato:
 
     classificar(texto) -> 'nf' | 'pedido' | 'desconhecido'
-    extrair(texto, origem_canal, arquivo=None) -> Extracao
+    extrair(texto, origem_canal, arquivo=None, motor=None) -> Extracao
     extrair_mensagem(msg: MensagemBruta) -> Extracao
 
 Regras que este modulo respeita sem excecao:
@@ -62,6 +62,9 @@ from .contratos import (
     CANAL_TELEGRAM,
     CANAL_WHATSAPP,
     MOTIVO_INJECAO_SUSPEITA,
+    MOTOR_OCR_SIMULADO,
+    MOTOR_PARSER,
+    MOTOR_TESSERACT,
     TIPO_DESCONHECIDO,
     TIPO_NF,
     TIPO_PEDIDO,
@@ -990,10 +993,10 @@ def _confianca_geral(confianca_por_campo: dict, presentes: set[str]) -> float:
     return round(soma / peso_total, 4)
 
 
-def _modo_ocr(arquivo: Optional[str]) -> tuple[bool, float]:
+def _modo_ocr(arquivo: Optional[str], motor: Optional[str] = None) -> tuple[bool, float]:
     """A leitura veio de OCR? `(ocr, confianca_de_leitura)`.
 
-    Tres casos:
+    Casos, na ordem:
 
     * **imagem** (`.png`, `.jpg`, ...) - sempre OCR: imagem nao tem camada de texto, entao
       quem le e o motor de OCR, por definicao. Sem isto a foto entrava com a confianca de
@@ -1001,9 +1004,13 @@ def _modo_ocr(arquivo: Optional[str]) -> tuple[bool, float]:
       texto do documento (defeito encontrado ao incluir a foto no corpus, caso B7);
     * PDF com sidecar `<arquivo>.ocr.txt` - caminho simulado, confianca pela densidade de
       confusoes (0,55..0,75);
-    * PDF sem sidecar - leitura nativa. (Quando o OCR REAL le um PDF, quem marca e o motor
-      do artefato, aplicado pelo pipeline.)
+    * **motor de OCR informado** (`ocr_simulado`/`tesseract`) - a leitura veio de OCR, e
+      quem sabe disso e quem leu: o motor acompanha a extracao. Cobre o PDF escaneado lido
+      pelo Tesseract REAL, que nao tem sidecar nenhum;
+    * PDF sem sidecar e sem motor de OCR - leitura nativa, confianca 1.0.
     """
+    if motor in (MOTOR_OCR_SIMULADO, MOTOR_TESSERACT):
+        return True, 1.0
     if not arquivo:
         return False, 1.0
     if Path(str(arquivo)).suffix.lower() in EXTENSOES_IMAGEM:
@@ -1027,10 +1034,22 @@ def _documento_id_provisorio(texto: str, arquivo: Optional[str]) -> str:
 # --------------------------------------------------------------- extracao
 
 
-def extrair(texto: str, origem_canal: str, arquivo: Optional[str] = None) -> Extracao:
-    """Extrator deterministico por rotulo/ancora (DANFE/NF e pedido, PDF ou mensagem)."""
+def extrair(
+    texto: str,
+    origem_canal: str,
+    arquivo: Optional[str] = None,
+    motor: Optional[str] = None,
+) -> Extracao:
+    """Extrator deterministico por rotulo/ancora (DANFE/NF e pedido, PDF ou mensagem).
+
+    `motor` e opcional e diz QUEM leu o texto (`pdfplumber`, `parser`, `ocr_simulado`,
+    `tesseract`). E o que permite a extracao saber que a leitura veio de OCR quando o PDF
+    escaneado foi lido pelo motor real - nesse caso nao existe sidecar `.ocr.txt`, e sem o
+    motor a confianca por campo saia como se a leitura fosse nativa. Quem chama a extracao
+    no fluxo real (o pipeline) ja tem esse dado no artefato.
+    """
     texto = texto or ""
-    ocr, _conf_leitura = _modo_ocr(arquivo)
+    ocr, _conf_leitura = _modo_ocr(arquivo, motor)
     leitura = _Leitura(texto, ocr=ocr)
 
     extracao = Extracao(
@@ -1038,7 +1057,7 @@ def extrair(texto: str, origem_canal: str, arquivo: Optional[str] = None) -> Ext
         origem_canal=origem_canal,
         tipo_documento=classificar(texto),
         arquivo_origem=arquivo,
-        motor="parser",
+        motor=motor or MOTOR_PARSER,
         ocr_usado=ocr,
         template_versao=TEMPLATE_VERSAO,
     )
