@@ -86,7 +86,7 @@ Somado a isso: **nenhum serviço pago, nenhuma chave nova, nenhum número real**
 | **Chamada credenciada real aos canais** | Decisão D4 do contrato: não há token nem número autorizado. | colocar credencial real no `.env` (passo do cliente, §7.2). |
 | **Agendamento executado** | Não executei o Agendador de Tarefas nem o `cron` — isso é do ambiente do cliente. O que está provado é o comando base e a idempotência. | criar a tarefa no servidor do cliente, com o campo "Iniciar em" (§7.6). |
 | **Exposição pública do webhook** | O receptor escuta em `127.0.0.1`, como o contrato pede. | endereço em **HTTPS** + certificado + liberação de firewall, no ambiente do cliente. |
-| **Validação da assinatura `X-Hub-Signature-256`** | Exige o *app secret* da Meta, que **não está no catálogo de variáveis** — é decisão de contrato, não desta frente. | ampliar o catálogo e implementar a validação (fase seguinte). |
+| **Validação da assinatura `X-Hub-Signature-256`** — **RESOLVIDA** | Era pendência porque dependia do *app secret* da Meta, que não estava no catálogo de variáveis (decisão de contrato). O catálogo passou a ter `WHATSAPP_APP_SECRET` e o receptor confere o HMAC-SHA256 do corpo bruto, em tempo constante, antes de gravar: assinatura ausente ou errada responde **401 sem gravar**. | fechado: catálogo com 17 variáveis, testes novos de assinatura na suíte. |
 
 > **Nota sobre o andamento:** quando comecei esta frente, o `.env.example`, os dois tools
 > auxiliares e os testes deste ciclo **ainda não estavam** no worktree (frentes F9 e F10 em
