@@ -121,6 +121,7 @@ Variaveis do catalogo (todas, com o modo em que importam):
 | `WHATSAPP_TOKEN` | `real:whatsapp` | sim | - |
 | `WHATSAPP_PHONE_NUMBER_ID` | `real:whatsapp` | nao | - |
 | `WHATSAPP_VERIFY_TOKEN` | `real:whatsapp` | sim | - |
+| `WHATSAPP_APP_SECRET` | nao | sim | - |
 | `WHATSAPP_API_BASE` | nao | nao | `https://graph.facebook.com/v21.0` |
 | `WHATSAPP_WEBHOOK_DIR` | nao | nao | `data/inbox_webhook/whatsapp` |
 
@@ -183,6 +184,10 @@ Receptor local do webhook do WhatsApp Cloud API, biblioteca padrao (`http.server
 - Parametros: `--host` (padrao `127.0.0.1`), `--porta` (padrao `8787`), `--env`,
   `--uma-vez` (derruba depois de um POST - usado na prova do PO).
 - Sem `WHATSAPP_VERIFY_TOKEN` configurado -> recusa iniciar com mensagem clara.
+- Com `WHATSAPP_APP_SECRET` configurado, o `POST` tem a assinatura `X-Hub-Signature-256`
+  conferida (HMAC-SHA256 do corpo bruto, comparacao em tempo constante) **antes** de gravar;
+  assinatura ausente ou que nao confere -> **401 e nada e gravado**. Sem o app secret o receptor
+  sobe com aviso explicito e aceita o POST (uso local, sem credencial real).
 
 ### 3.4 `tools/gerar_env_example.py` (novo) - dono: preguica
 

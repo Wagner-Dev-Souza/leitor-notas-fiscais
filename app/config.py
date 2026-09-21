@@ -183,6 +183,18 @@ VARIAVEIS: tuple[Variavel, ...] = (
         sensivel=True,
     ),
     Variavel(
+        nome="WHATSAPP_APP_SECRET",
+        descricao=(
+            "App secret do app da Meta, usado para conferir a assinatura X-Hub-Signature-256 "
+            "de cada webhook recebido pelo receptor local (SEGREDO)."
+        ),
+        onde_obter=(
+            "No Meta for Developers: seu app > Configuracoes do app > Basico > Chave secreta do app."
+        ),
+        obrigatoria_em=(),
+        sensivel=True,
+    ),
+    Variavel(
         nome="WHATSAPP_API_BASE",
         descricao="Endereco base da Graph API do WhatsApp. Só mude para apontar a um espelho/proxy local.",
         onde_obter="Valor do Meta for Developers (padrao https://graph.facebook.com/v21.0).",
@@ -296,6 +308,7 @@ class WhatsAppConfig:
     token: str
     phone_number_id: str
     verify_token: str
+    app_secret: str
     api_base: str
     webhook_dir: Path
 
@@ -498,6 +511,7 @@ def carregar(env_path=None, ambiente=None) -> Config:
             token=valores["WHATSAPP_TOKEN"],
             phone_number_id=valores["WHATSAPP_PHONE_NUMBER_ID"],
             verify_token=valores["WHATSAPP_VERIFY_TOKEN"],
+            app_secret=valores["WHATSAPP_APP_SECRET"],
             api_base=valores["WHATSAPP_API_BASE"].rstrip("/"),
             webhook_dir=_caminho(valores["WHATSAPP_WEBHOOK_DIR"], "data/inbox_webhook/whatsapp"),
         ),

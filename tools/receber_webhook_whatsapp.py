@@ -14,11 +14,12 @@ Comportamento:
   * Cada requisicao vira UMA linha de log. O token **nunca** e impresso - nem o caminho
     com query crua, que o carrega; o log mostra a rota e o nome do parametro.
 
-OBSERVACAO HONESTA (declarada no relato): esta entrega nao fez chamada credenciada real a
-`graph.facebook.com` e nao valida a assinatura `X-Hub-Signature-256`, porque o catalogo
-congelado de variaveis (`app/config.py: VARIAVEIS`) nao tem o app secret da Meta. Em
-producao, com o app secret configurado, a assinatura do POST precisa ser validada antes de
-gravar o arquivo.
+Assinatura do POST (`X-Hub-Signature-256`): com `WHATSAPP_APP_SECRET` configurado, todo POST
+tem a assinatura conferida (HMAC-SHA256 do corpo BRUTO, comparado em tempo constante) **antes**
+de qualquer gravacao - assinatura ausente ou que nao confere responde 401 e nada e gravado.
+Sem o app secret o receptor sobe com aviso explicito na tela e segue aceitando o POST sem
+conferir a origem: e o modo que permite a prova local sem credencial real, e por isso ele
+avisa alto em vez de fingir que esta seguro.
 
 Uso:
     .venv/Scripts/python.exe tools/receber_webhook_whatsapp.py [--host 127.0.0.1]
@@ -28,6 +29,8 @@ Uso:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import sys
 from datetime import datetime
@@ -41,6 +44,22 @@ if str(RAIZ) not in sys.path:
 
 ROTA_PADRAO = "/webhook/whatsapp"
 LIMITE_CORPO_BYTES = 5 * 1024 * 1024  # webhook de mensagem e pequeno; acima disso, recusa
+CABECALHO_ASSINATURA = "X-Hub-Signature-256"
+
+
+def _assinatura_confere(app_secret: str, corpo: bytes, cabecalho: str) -> bool:
+    """Confere `X-Hub-Signature-256: sha256=<hex>` sobre o corpo BRUTO (HMAC-SHA256).
+
+    Comparacao em tempo constante (`hmac.compare_digest`). Nao revela o valor esperado nem o
+    recebido: quem le o log so sabe que nao conferiu.
+    """
+    if not cabecalho:
+        return False
+    partes = cabecalho.split("=", 1)
+    if len(partes) != 2 or partes[0].strip().lower() != "sha256":
+        return False
+    esperado = hmac.new(app_secret.encode("utf-8"), corpo, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperado, partes[1].strip().lower())
 
 
 def _linha(mensagem: str) -> None:
@@ -78,7 +97,7 @@ def _nome_arquivo(destino: Path, contador: int) -> Path:
     return candidato
 
 
-def _criar_handler(verify_token: str, destino: Path, uma_vez: bool):
+def _criar_handler(verify_token: str, destino: Path, uma_vez: bool, app_secret: str = ""):
     estado = {"posts": 0}
 
     class HandlerWebhook(BaseHTTPRequestHandler):
@@ -151,6 +170,14 @@ def _criar_handler(verify_token: str, destino: Path, uma_vez: bool):
                 return
 
             bruto = self.rfile.read(tamanho)
+
+            if app_secret:
+                cabecalho = self.headers.get(CABECALHO_ASSINATURA) or ""
+                if not _assinatura_confere(app_secret, bruto, cabecalho):
+                    self._log("POST", "401 assinatura X-Hub-Signature-256 ausente ou nao confere")
+                    self._json(401, {"erro": "assinatura ausente ou invalida"})
+                    return
+
             try:
                 envelope = json.loads(bruto.decode("utf-8"))
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -219,10 +246,12 @@ def main(argv=None) -> int:
         )
         return 2
 
+    app_secret = str(getattr(cfg.whatsapp, "app_secret", "") or "")
+
     destino = Path(cfg.whatsapp.webhook_dir)
     destino.mkdir(parents=True, exist_ok=True)
 
-    handler = _criar_handler(verify_token, destino, bool(args.uma_vez))
+    handler = _criar_handler(verify_token, destino, bool(args.uma_vez), app_secret)
     try:
         servidor = ThreadingHTTPServer((args.host, args.porta), handler)
     except OSError as exc:
@@ -233,6 +262,17 @@ def main(argv=None) -> int:
         f"escutando em http://{args.host}:{args.porta} | rota {ROTA_PADRAO} | "
         f"destino de envelopes: {destino} | verify_token: configurado (valor nunca e impresso)"
     )
+    if app_secret:
+        _linha(
+            "assinatura do POST: VALIDADA (X-Hub-Signature-256 conferida com WHATSAPP_APP_SECRET; "
+            "valor nunca e impresso)"
+        )
+    else:
+        _linha(
+            "AVISO: WHATSAPP_APP_SECRET nao configurado - o POST e aceito SEM conferir a "
+            "assinatura X-Hub-Signature-256. Defina o app secret no .env antes de expor este "
+            "receptor fora da maquina local."
+        )
     _linha("pronto para receber o webhook (GET de verificacao + POST de envelope). Ctrl+C encerra.")
     try:
         servidor.serve_forever()
