@@ -52,6 +52,29 @@ def _linhas_da_nf() -> list[str]:
     return [linha.strip() for linha in texto.splitlines() if linha.strip()]
 
 
+def test_idioma_do_ocr_cai_para_ingles_quando_falta_portugues(monkeypatch):
+    """Tesseract sem o pacote de portugues nao pode virar leitura vazia.
+
+    O instalador oficial do Windows vem so com `eng` + `osd`. Pedir `por` sem ter o pacote
+    faz o motor recusar e a leitura sair VAZIA - medido no runner do CI. O produto tem de
+    ler em ingles nesse caso, e nao ficar mudo.
+    """
+
+    class _FalsoTesseract:
+        @staticmethod
+        def get_languages(config=""):
+            return ["eng", "osd"]
+
+    assert ingress.idioma_ocr(_FalsoTesseract) == "eng"
+
+    class _ComPortugues:
+        @staticmethod
+        def get_languages(config=""):
+            return ["eng", "osd", "por"]
+
+    assert ingress.idioma_ocr(_ComPortugues) == "por"
+
+
 def desenhar_nota(destino: Path) -> Path:
     """Desenha as linhas da NF num PNG limpo, preto no branco, fonte grande."""
     from PIL import Image, ImageDraw, ImageFont

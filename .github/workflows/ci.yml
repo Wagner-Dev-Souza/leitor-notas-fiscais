@@ -50,6 +50,9 @@ jobs:
         # de OCR real nao e exercitado no CI.
         run: |
           winget install --id tesseract-ocr.tesseract -e --accept-package-agreements --accept-source-agreements --disable-interactivity
+          # O instalador oficial do Windows traz so eng+osd: o pacote de portugues e baixado
+          # a parte, senao o OCR real do runner nao serve para uma nota em portugues.
+          Invoke-WebRequest -Uri "https://github.com/tesseract-ocr/tessdata_fast/raw/main/por.traineddata" -OutFile "C:\Program Files\Tesseract-OCR\tessdata\por.traineddata"
           & "C:\Program Files\Tesseract-OCR\tesseract.exe" --list-langs
 
       - name: Suite de testes (suite completa)
