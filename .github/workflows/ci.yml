@@ -1,0 +1,66 @@
+name: CI - testes e pipeline
+
+# Roda a suite completa, a prova de idempotencia e o comando unico da entrega
+# a cada push nas branches do modelo (squad-pecados -> homolog -> main).
+#
+# Por que windows-latest: a suite exige o interpretador no layout do projeto
+# (.venv/Scripts/python.exe) - ver tests/conftest.py, fixture python_venv.
+# O alvo do produto e processo local Windows, entao o CI espelha o ambiente real.
+
+on:
+  push:
+    branches: [main, homolog, squad-pecados]
+  pull_request:
+    branches: [main, homolog]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: pytest + idempotencia + comando unico
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: CPython 3.12 (mesma versao do .venv do projeto)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Criar o .venv no layout exigido pela suite (.venv/Scripts/python.exe)
+        run: python -m venv .venv
+
+      - name: Instalar as dependencias fixadas
+        run: .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Suite de testes (401 testes)
+        run: .\.venv\Scripts\python.exe -m pytest -q
+
+      - name: Prova de idempotencia (pipeline roda 2x, zero duplicata)
+        run: .\.venv\Scripts\python.exe tools/verificar.py
+
+      - name: Comando unico da entrega (modo mock)
+        run: .\.venv\Scripts\python.exe -m app.run --mock
+
+      - name: Guardar a planilha gerada como evidencia
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planilha-controle-financeiro
+          path: |
+            data/out/controle_financeiro.xlsx
+            data/out/controle_financeiro.csv
+            data/out/resumo.json
+          if-no-files-found: warn
+          retention-days: 14
