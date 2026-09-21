@@ -304,10 +304,10 @@ de produção e `data/mocks/manifest.json` como verdade de referência. Saída r
 ```
 ........................................................................ [ 89%]
 .........................................                                [100%]
-424 passed in 66.50s
+425 passed in 76.93s (0:01:16)
 ```
 
-**São 424 testes, e todos passam.** Distribuição por arquivo:
+**São 425 testes, e todos passam.** Distribuição por arquivo:
 
 | Arquivo | Testes | O que cobre |
 |---|---|---|
@@ -941,7 +941,9 @@ e no painel - nenhuma leitura se passa por nativa. A rasterização da página a
 `2,35 1750`) e a 400 dpi ou mais ele cola colunas - 300 é o ponto medido como correto nesta
 máquina. O que **está** provado: PDF escaneado e **imagem** entram, passam pelo OCR real, saem com
 a confiança de OCR (0,65 em vez de 0,95) e **vão para revisão humana** - nunca para a planilha sem
-conferência de uma pessoa. **O que ainda NÃO está medido:** acurácia de OCR em foto de nota de
+conferência de uma pessoa. A confiança **por campo** também segue a origem da leitura: quem leu acompanha a extração (`extrair(..., motor=...)`), então texto vindo do motor real - PDF escaneado sem sidecar ou imagem - pontua com a base de OCR (0,65), e não com a base nativa. Foi essa emenda que fechou a última brecha em que uma leitura de OCR podia se passar por leitura nativa.
+
+**O que ainda NÃO está medido:** acurácia de OCR em foto de nota de
 verdade (ângulo, sombra, papel amassado, celular na mão). O material deste repositório é sintético
 e limpo, e os limiares são os do desenho do produto, não calibrados contra foto real.
 
@@ -1024,7 +1026,7 @@ logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo gi
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (424 testes) + RELATORIO-F5.md, test_imagem.py,
+tests/        suíte pytest (425 testes) + RELATORIO-F5.md, test_imagem.py,
               test_multipagina.py, test_rajada.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
