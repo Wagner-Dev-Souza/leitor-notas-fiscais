@@ -1,0 +1,18 @@
+# Fim de linha e binarios.
+#
+# Os mocks (.pdf/.xlsx) NAO podem ser tratados como texto. O PDF sintetico nao tem
+# byte nulo nos primeiros 8 KB, entao o git o classifica como TEXTO e, num checkout
+# com autocrlf ligado (padrao no Windows e no runner do GitHub), converte LF->CRLF
+# DENTRO do arquivo: o PDF sai corrompido e o sha256 que o pipeline usa como
+# identidade do documento muda. Marcado como binario, o byte que sai e o byte que
+# entrou - em qualquer maquina - e a deduplicacao fica estavel.
+*.pdf    binary
+*.xlsx   binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.db     binary
+*.woff   binary
+*.woff2  binary
