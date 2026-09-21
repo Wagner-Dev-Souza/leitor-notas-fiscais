@@ -29,6 +29,11 @@ SCHEMA_VERSION = "1.0"
 
 # Canal de entrada. `imagem` e o arquivo de imagem (foto/print de nota) que chega
 # pela pasta de documentos da inbox - o mesmo papel do PDF, lido por OCR.
+# Extensoes de imagem aceitas como documento (foto/print de nota). Fica no contrato porque
+# dois modulos decidem por ela: a ingestao (`ingress`, que le a imagem) e a extracao
+# (`extracao`, que reconhece que a leitura veio de OCR).
+EXTENSOES_IMAGEM = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp")
+
 CANAL_PDF = "pdf"
 CANAL_IMAGEM = "imagem"
 CANAL_WHATSAPP = "whatsapp"

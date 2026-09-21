@@ -32,15 +32,16 @@
       "endereco": "AV. DO CONTORNO, 9000 - BELO HORIZONTE/MG"
     }
   ],
-  "total_arquivos": 23,
-  "total_itens_manifest": 20,
+  "total_arquivos": 24,
+  "total_itens_manifest": 21,
   "casos_borda_gerados": [
     "B1",
     "B2",
     "B3",
     "B4",
     "B5",
-    "B6"
+    "B6",
+    "B7"
   ],
   "itens": [
     {
@@ -574,6 +575,47 @@
       },
       "observacao": null,
       "nota_manifest": null
+    },
+    {
+      "arquivo": "pdf/FORN-GAMA_nf_3003_foto.png",
+      "caminho_repo": "data/mocks/pdf/FORN-GAMA_nf_3003_foto.png",
+      "canal": "imagem",
+      "tipo_documento": "nf",
+      "caso_borda": "B7",
+      "sha256": "8c0ff5cf30655a7763499fc76a1829cbe9e54efe747503f32efee7aeb6633004",
+      "esperado": {
+        "tipo_documento": "nf",
+        "numero_pedido": "3003",
+        "chave_acesso_nf": "35260391140832000169550010000030031571854907",
+        "emitente_nome": "GAMA COMERCIO DE FERRAMENTAS LTDA",
+        "emitente_cnpj": "91140832000169",
+        "data_emissao": "2026-03-22",
+        "data_vencimento": "2026-04-21",
+        "valor_total_centavos": 46300,
+        "soma_itens_centavos": 46300,
+        "itens": [
+          {
+            "descricao": "CHAVE DE FENDA 1/4 X 6",
+            "quantidade": "10",
+            "unidade": "PC",
+            "valor_unitario_centavos": 1450,
+            "valor_total_centavos": 14500
+          },
+          {
+            "descricao": "JOGO DE CHAVES COMBINADAS",
+            "quantidade": "2",
+            "unidade": "JG",
+            "valor_unitario_centavos": 15900,
+            "valor_total_centavos": 31800
+          }
+        ],
+        "status_esperado": "revisao_humana",
+        "motivos_esperados": [
+          "baixa_confianca"
+        ]
+      },
+      "observacao": null,
+      "nota_manifest": "foto da nota (PNG, canal imagem): lida pelo OCR real, sai com confianca de OCR (0,65) e vai para revisao humana - nunca para a planilha sem conferencia."
     },
     {
       "arquivo": "whatsapp/whatsapp_1.jsonl",
