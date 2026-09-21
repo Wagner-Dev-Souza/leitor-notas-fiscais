@@ -46,13 +46,27 @@ jobs:
 
       - name: Instalar o Tesseract (OCR real) com o idioma portugues
         # Mesmo pacote validado na maquina de desenvolvimento (Tesseract 5.5.3, idioma
-        # `por`). Sem o binario, os testes de leitura de imagem sao pulados e o caminho
-        # de OCR real nao e exercitado no CI.
+        # `por`). Sem o binario, os testes de leitura de imagem sao pulados e o caminho de
+        # OCR real nao e exercitado no CI.
+        shell: pwsh
         run: |
           winget install --id tesseract-ocr.tesseract -e --accept-package-agreements --accept-source-agreements --disable-interactivity
-          # O instalador oficial do Windows traz so eng+osd: o pacote de portugues e baixado
-          # a parte, senao o OCR real do runner nao serve para uma nota em portugues.
-          Invoke-WebRequest -Uri "https://github.com/tesseract-ocr/tessdata_fast/raw/main/por.traineddata" -OutFile "C:\Program Files\Tesseract-OCR\tessdata\por.traineddata"
+
+          # O instalador oficial do Windows traz so eng+osd: o pacote de portugues vem a
+          # parte, senao o OCR real do runner nao serve para uma nota em portugues.
+          $tessdata = "C:\Program Files\Tesseract-OCR\tessdata"
+          New-Item -ItemType Directory -Force -Path $tessdata | Out-Null
+
+          # `curl` com retry: o download vem do GitHub e um 504 de la NAO pode reprovar a
+          # entrega (aconteceu de verdade no run #23 - Gateway timeout 504 no download).
+          curl.exe -L --fail --retry 5 --retry-delay 3 --retry-all-errors `
+            -o "$tessdata\por.traineddata" `
+            "https://github.com/tesseract-ocr/tessdata_fast/raw/main/por.traineddata"
+          if ($LASTEXITCODE -ne 0) { throw "falha ao baixar o por.traineddata (curl exit $LASTEXITCODE)" }
+
+          $arquivo = Get-Item "$tessdata\por.traineddata"
+          if ($arquivo.Length -lt 100000) { throw "por.traineddata suspeito: $($arquivo.Length) bytes" }
+
           & "C:\Program Files\Tesseract-OCR\tesseract.exe" --list-langs
 
       - name: Suite de testes (suite completa)
