@@ -4,6 +4,11 @@ Pipeline local que **lê documentos e mensagens de compra, extrai os números qu
 grava numa planilha de controle financeiro** - sem duplicar linha, com trilha de auditoria
 do que foi aceito e do que ficou em dúvida.
 
+![python](https://img.shields.io/badge/python-3.12-blue)
+![testes](https://img.shields.io/badge/testes-pytest-success)
+![ocr](https://img.shields.io/badge/OCR-Tesseract-informational)
+![modo](https://img.shields.io/badge/padr%C3%A3o-mock%20(offline)-lightgrey)
+
 Roda **por um único comando**. O padrão é o **modo mock**: offline, na máquina, sem serviço pago,
 sem rede e sem chave de API - é o modo das seções 1 a 6 e o que este repositório demonstra. Existe
 também o **modo real**, que liga por configuração e coleta mensagens de WhatsApp/Telegram para
@@ -1074,3 +1079,9 @@ Documentação de referência, em ordem de leitura:
 
 *Todo número neste README veio de execução real do pipeline nesta máquina ou de artefato em
 `data/out/`. Onde não deu para medir, está escrito que não deu.*
+
+---
+
+## 12. Licença
+
+MIT - veja [LICENSE](LICENSE).
