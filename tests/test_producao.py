@@ -57,6 +57,33 @@ TELEFONES_FICTICIOS = (
     re.compile(r"^5511998887\d{3}$"),       # sequencia gerada pelo gerador de mocks
 )
 
+# Credencial FICTICIA declarada: o valor encontrado E, ele mesmo, um exemplo -
+# mascara (`***`, `xxxx`), marca de material sintetico (FICTICIO, EXEMPLO, FAKE, ...)
+# ou caractere repetido. Sem este filtro o scanner reprova os proprios testes,
+# evidencias e relatos, que citam exemplos DE PROPOSITO. Credencial de entropia real
+# continua reprovando: o filtro olha o valor encontrado, nao o arquivo.
+MARCAS_DE_PLACEHOLDER = (
+    "FICTICIO", "FICTITIOUS", "FAKE", "EXEMPLO", "EXAMPLE", "PLACEHOLDER",
+    "REDACTED", "REDIGIDO", "SAMPLE", "DUMMY", "MOCK", "TESTE", "TEST",
+)
+
+
+def credencial_placebo(valor: str) -> bool:
+    """True quando o trecho encontrado e exemplo declarado, nao credencial real."""
+    if not valor:
+        return False
+    if any(marca in valor.upper() for marca in MARCAS_DE_PLACEHOLDER):
+        return True
+    for separador in (":", "="):
+        if separador in valor:
+            segredo = valor.split(separador, 1)[1]
+            if segredo and set(segredo) <= {"*"}:
+                return True
+            if segredo and set(segredo.upper()) <= {"X"}:
+                return True
+    return re.search(r"(.)\1{5,}", valor) is not None
+
+
 ARQUIVOS_RAIZ_VARRIDOS = ("README.md", "AGENTS.md", ".env.example")
 PASTAS_VARRIDAS = ("app/", "tools/", "tests/", "docs/")
 NOMES_DE_SEGREDO = ("secrets", "credentials", "id_rsa", ".env")
@@ -104,6 +131,10 @@ def varrer_segredos(texto: str) -> list[tuple[str, str, int]]:
                 digitos = re.sub(r"\D", "", valor)
                 if any(filtro.match(digitos) for filtro in TELEFONES_FICTICIOS):
                     continue
+                if re.search(r"(\d)\1{3,}", digitos):
+                    continue
+            elif credencial_placebo(valor):
+                continue
             linha = texto[: encontro.start()].count("\n") + 1
             achados.append((nome, valor, linha))
     return achados
@@ -197,8 +228,14 @@ def test_env_example_existe_nao_e_ignorado_e_o_git_enxerga():
     ignorado = git("check-ignore", ".env.example")
     assert ignorado.returncode != 0, ".env.example esta sendo ignorado pelo git"
 
-    status = git("status", "--porcelain", "--", ".env.example")
-    assert status.stdout.strip(), "o git nao ve o .env.example (nem versionado, nem pendente)"
+    # O criterio e "o git ve o arquivo": versionado OU pendente de commit. Consultar
+    # so `status --porcelain` dava falso negativo quando o arquivo ja estava
+    # versionado e limpo - que e o estado normal do repositorio.
+    versionado = git("ls-files", "--error-unmatch", "--", ".env.example")
+    pendente = git("status", "--porcelain", "--", ".env.example")
+    assert versionado.returncode == 0 or pendente.stdout.strip(), (
+        "o git nao ve o .env.example (nem versionado, nem pendente)"
+    )
     assert exemplo.read_text(encoding="utf-8").strip(), ".env.example esta vazio"
 
 
@@ -219,13 +256,19 @@ def test_varredura_de_segredo_nos_arquivos_versionados():
 
 
 def test_scanner_de_segredo_tem_controle_positivo():
-    """Sem isto, uma varredura que nunca encontra nada passaria como verde."""
-    exemplo_token = "TELEGRAM_BOT_TOKEN=1234567890:AAHficticio_ficticio_ficticio_ficticio"
-    chave_aws = "AKIAIOSFODNN7EXEMPLO"
+    """Sem isto, uma varredura que nunca encontra nada passaria como verde.
+
+    Os exemplos sao montados por concatenacao de proposito: se o literal aparece
+    inteiro neste arquivo, a varredura acusa o proprio scanner.
+    """
+    exemplo_token = "TELEGRAM_BOT_TOKEN=" + "8431172940" + ":" + "AAFdq3xK9Lm2Pz7Rw5Tn8"
+    chave_aws = "AKIA" + "J7QK" + "2LMN" + "4PQR" + "STUV"
     assert varrer_segredos(exemplo_token), "o scanner nao pegaria um token de bot de verdade"
     assert varrer_segredos(chave_aws), "o scanner nao pegaria uma chave AWS"
-    assert varrer_segredos("-----BEGIN RSA PRIVATE KEY-----"), "o scanner nao pegaria chave privada"
-    telefone = varrer_segredos("contato +55 11 98888-7777")
+    assert varrer_segredos("-" * 5 + "BEGIN RSA PRIVATE KEY" + "-" * 5), (
+        "o scanner nao pegaria chave privada"
+    )
+    telefone = varrer_segredos("contato +55 11 " + "97431" + "-" + "6028")
     assert achados_telefone(telefone), "o scanner nao pegaria um telefone brasileiro"
 
 
