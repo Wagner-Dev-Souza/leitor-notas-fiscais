@@ -28,6 +28,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    # A chave e passada por variavel de ambiente (nunca interpolada dentro do comando, o
+    # que poderia aparecer no log). Sem ela o ciclo pula em vez de falhar: o agendamento
+    # roda a cada 6h e nao faz sentido pintar o repositorio de vermelho por uma chave que
+    # ainda nao foi configurada.
+    env:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      LINEAR_TIMEKEY: PROJ
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,13 +45,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Conferir se a chave do Linear esta configurada
+        id: chave
+        run: |
+          if [ -z "${LINEAR_API_KEY}" ]; then
+            echo "configurada=false" >> "$GITHUB_OUTPUT"
+            echo "LINEAR_API_KEY nao esta configurada: pulando a atualizacao do painel."
+            echo "Para ativar: Settings > Secrets and variables > Actions > New repository secret."
+          else
+            echo "configurada=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Gerar o painel a partir do quadro
-        env:
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-          LINEAR_TIMEKEY: PROJ
+        if: steps.chave.outputs.configurada == 'true'
         run: python tools/painel_linear.py
 
       - name: Commitar quando o quadro mudou
+        if: steps.chave.outputs.configurada == 'true'
         run: |
           if git diff --quiet -- docs/linear/painel.md; then
             echo "painel sem alteracao desde a ultima atualizacao"
