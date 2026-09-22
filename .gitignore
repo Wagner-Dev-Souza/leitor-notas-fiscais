@@ -26,3 +26,9 @@ data/inbox_webhook/
 # Estado da coleta (offset do Telegram - confirmacao de leitura do getUpdates).
 # E estado de execucao, nao evidencia de rodada: nao entra no git.
 data/out/telegram_offset.json
+
+# Fotografia por rodada (`auditoria_rodada_<AAAAMMDD-HHMMSS>.jsonl`): historico LOCAL de
+# execucoes, nao evidencia da entrega. A entrega leva o resultado OFICIAL de data/out
+# (planilha, auditoria.jsonl, fila, resumo, painel, banco); as fotografias ficam so na
+# maquina de quem roda. Em producao, aponte OUT_DIR para FORA do repositorio (como o .env).
+data/out/auditoria_rodada_*.jsonl
