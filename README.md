@@ -234,18 +234,25 @@ Modo     : mock | config: nenhum .env (padrao)
 Inbox    : data\mocks
 Saida    : data\out
 Banco    : data\out\pipeline.db
-Rodada   : 20260921-112718
+Rodada   : 20260922-075004
 --------------------------------------------------------------
 Artefatos ingeridos : 21 (pdf 12 | imagens 1 | mensagens 8)
-Auto-aprovados      : 0
-Em revisao humana   : 0
-Rejeitados          : 0
-Deduplicados        : 21
+Auto-aprovados      : 7
+Em revisao humana   : 11
+Rejeitados          : 2
+Deduplicados        : 1
 Linhas na planilha  : 7
 --------------------------------------------------------------
 Leitura por motor   : parser 8 | pdfplumber 11 | tesseract 2
 OCR                 : nenhum artefato usou OCR simulado nesta rodada
-Auditoria           : 21 linha(s) nesta rodada | trilha cumulativa: 3176 linha(s)
+Auditoria           : 21 linha(s) nesta rodada | trilha cumulativa: 21 linha(s)
+--------------------------------------------------------------
+Motivos na fila de excecoes:
+   total_sem_detalhamento             7
+   baixa_confianca                    2
+   texto_instrucao_suspeita           2
+   valor_total_ausente                2
+   divergencia_soma_itens             1
 ```
 
 Leitura das contagens: dos 21 artefatos lidos, **7 documentos foram aprovados** e viraram
@@ -407,6 +414,19 @@ vazias, que é a lista oficial das variáveis.
 >
 > Na cópia do cliente - que não é worktree de desenvolvimento - o `.env` pode ficar na raiz do
 > projeto normalmente, como descrito acima. `--check-config` funciona nos dois modos.
+
+**Em produção, a pasta de resultados fica FORA do repositório.** Pela mesma razão do `.env`: o
+diretório de saída guarda planilha e trilha de rodadas **reais** (dado de cliente). Aponte `--out`
+(ou `OUT_DIR` no `.env`) para uma pasta fora do repositório entregue:
+
+```bash
+.venv/Scripts/python.exe -m app.run --real --env "C:/config/nf/.env" --out "D:/financeiro/saida"
+```
+
+As **fotografias por rodada** (`data/out/auditoria_rodada_<AAAAMMDD-HHMMSS>.jsonl`) são histórico
+local de execução, não evidência da entrega - o `.gitignore` as mantém fora do git. A entrega leva
+o resultado **oficial** de `data/out`: planilha (xlsx e csv), `auditoria.jsonl`, fila de exceções,
+resumo, painel e banco.
 
 **A coleta não re-baixa o histórico a cada rodada.** O `getUpdates` do Telegram devolve a janela
 inteira de updates enquanto ninguém confirma a leitura. A coleta grava `telegram_offset.json` no
