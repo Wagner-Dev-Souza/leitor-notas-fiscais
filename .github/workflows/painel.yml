@@ -1,0 +1,56 @@
+name: Painel do squad (Linear)
+
+# Mantem `docs/linear/painel.md` atualizado a partir do quadro do Linear.
+#
+# Por que existe: o Linear nao tem link publico de quadro -- quem nao e membro do
+# workspace nao ve nada. O arquivo gerado por este workflow e a versao que qualquer
+# pessoa consegue ler no repositorio, e ela acompanha a evolucao do projeto.
+#
+# A chave fica em `secrets.LINEAR_API_KEY` (criptografada, nunca aparece no codigo).
+# Workflows deste repositorio nao expoem secrets a pull request de fork: o evento
+# `push` e `schedule` rodam apenas no repositorio de origem.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: painel-linear
+  cancel-in-progress: true
+
+jobs:
+  painel:
+    name: Gerar e commitar o painel
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: CPython 3.12 (mesma versao do .venv do projeto)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Gerar o painel a partir do quadro
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          LINEAR_TIMEKEY: PROJ
+        run: python tools/painel_linear.py
+
+      - name: Commitar quando o quadro mudou
+        run: |
+          if git diff --quiet -- docs/linear/painel.md; then
+            echo "painel sem alteracao desde a ultima atualizacao"
+            exit 0
+          fi
+          git config user.name "Wagner Silva Souza"
+          git config user.email "115811946+Wagner-Dev-Souza@users.noreply.github.com"
+          git add docs/linear/painel.md
+          git commit -m "docs: atualiza o painel do squad a partir do quadro do Linear"
+          git push

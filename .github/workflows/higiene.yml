@@ -1,0 +1,35 @@
+name: Higiene do repositorio
+
+# Impede que entre no repositorio o que nao deve ser publico: caminho da maquina de
+# quem executou, dump bruto de execucao e arquivo com nome de segredo.
+#
+# Por que no CI e nao so no computador de quem commita: a regra so vale se ela
+# reprovar de verdade. Localmente ela depende da boa memoria de quem lembra de rodar.
+
+on:
+  push:
+    branches: [main, homolog, squad-pecados]
+  pull_request:
+    branches: [main, homolog, squad-pecados]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  higiene:
+    name: Conferir o que esta versionado
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: CPython 3.12 (mesma versao do .venv do projeto)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rodar o verificador
+        run: python tools/verificar_higiene.py

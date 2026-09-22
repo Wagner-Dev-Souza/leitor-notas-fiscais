@@ -1069,6 +1069,7 @@ data/out/     saída real da rodada: planilha, auditoria, fila de pendências, p
 logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo git
 docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade, devops, UX, plano do cliente)
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
+docs/linear/  o projeto-mãe e o painel do squad gerado do quadro do Linear (painel.md)
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
 tests/        suíte pytest (437 testes) + RELATORIO-F5.md, test_imagem.py,
               test_multipagina.py, test_rajada.py e evidencia/
@@ -1077,6 +1078,8 @@ tools/        gerar_mocks.py      material sintético determinístico
               receber_webhook_whatsapp.py  receptor local do webhook do WhatsApp
               gerar_env_example.py         gera o .env.example a partir do catálogo
               verificar_producao.py        verificador de execução real (6 itens)
+              painel_linear.py             gera docs/linear/painel.md a partir do quadro do Linear
+              verificar_higiene.py         reprova caminho de máquina e dump de execução versionados
 .env.example  lista versionada das 17 variáveis, com as chaves vazias (gerada do código)
 requirements.txt  dependências, nas versões exatas instaladas no .venv
 ```
@@ -1094,6 +1097,8 @@ Documentação de referência, em ordem de leitura:
 4. `relatorios/RELATORIO-ENTREGA.md` - o que foi entregue nas fases anteriores e o que ficou de fora.
 5. `relatorios/CRONOGRAMA.md` - o cronograma prometido ao cliente e o tempo real de execução.
 6. `docs/01-arquitetura.md` a `docs/06-plano-e-requisitos-cliente.md` - o desenho e o plano.
+7. `docs/linear/painel.md` - o retrato do quadro do squad: card, frente, dono, situação e quando
+   cada frente fechou (seção 12).
 
 ---
 
@@ -1102,6 +1107,28 @@ Documentação de referência, em ordem de leitura:
 
 ---
 
-## 12. Licença
+## 12. O quadro do squad, fora do Linear
+
+O trabalho deste projeto foi orquestrado com os cards no Linear (time `PROJ`): as frentes
+especializadas, a execução do produto e o fechamento. O quadro vivo tem acesso restrito aos
+membros do workspace - **o Linear não tem link público de quadro**, então um link aqui no README
+não mostraria nada a quem visita o repositório.
+
+Por isso o estado real dos cards é versionado no próprio repositório:
+
+- `docs/linear/painel.md` - gerado por `tools/painel_linear.py` a partir da API do Linear: card,
+  frente, dono, situação e a data em que cada frente fechou
+- o workflow **Painel do squad (Linear)** regenera o arquivo a cada 6 horas e sob demanda; a chave
+  da API fica em *secret* do repositório e nunca entra no código
+- **nada de dump**: o arquivo tem o que o quadro mostra. Payload de API, id interno de execução e
+  resposta crua não entram
+
+O mesmo cuidado vale para o resto do repositório: `tools/verificar_higiene.py` roda no CI e reprova
+caminho da máquina de quem executa e dump de execução versionados (workflow **Higiene do
+repositório**).
+
+---
+
+## 13. Licença
 
 MIT - veja [LICENSE](LICENSE).

@@ -12,7 +12,10 @@ Cliente (Wagner, via Loghanth) **não envia material**. Nada de depender de arqu
 
 ## O que entra
 - Código-fonte, scripts geradores de mock, testes, README e docs.
-- Commits **com push para o GitHub** no remoto `origin`: `Wagner-Dev-Souza/agentes-nf-pedidos` (**privado**). Nunca faça push de segredo.
+- Commits **com push para o GitHub** no remoto `origin`: `Wagner-Dev-Souza/leitor-notas-fiscais`
+  (**público** - qualquer pessoa vê o repositório). Nunca faça push de segredo, de caminho da
+  máquina de quem executa nem de dado real de cliente: o repositório é a vitrine do projeto.
+  O CI reprova caminho de máquina e dump de execução versionados (`tools/verificar_higiene.py`).
 
 ## Modelo de branches (remoto `origin`)
 - `squad-pecados` — **é aqui que o time trabalha e commita** (é a branch do worktree do Orca).
