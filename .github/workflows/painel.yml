@@ -63,8 +63,12 @@ jobs:
       - name: Commitar quando o quadro mudou
         if: steps.chave.outputs.configurada == 'true'
         run: |
-          if git diff --quiet -- docs/linear/painel.md; then
-            echo "painel sem alteracao desde a ultima atualizacao"
+          # O arquivo carrega o horario do retrato, que muda a cada execucao. Comparar
+          # sem essa linha evita um commit a cada 6h so com o horario trocado: o que
+          # interessa versionar e a mudanca no quadro, nao o relogio.
+          if git diff -I "Retrato do quadro em" --quiet -- docs/linear/painel.md; then
+            echo "o quadro nao mudou desde a ultima atualizacao (so o horario do retrato)"
+            git checkout -- docs/linear/painel.md
             exit 0
           fi
           git config user.name "Wagner Silva Souza"
