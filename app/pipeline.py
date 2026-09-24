@@ -73,6 +73,11 @@ try:  # F4 (inveja) entrega a fila e o painel; o pipeline nao reimplementa isso
 except ImportError:  # pragma: no cover - so quando F4 ainda nao chegou
     revisao = None
 
+try:  # aprovacao humana na planilha (aba `Revisao`) - fecha a pendencia resolvida
+    from . import aprovacao
+except ImportError:  # pragma: no cover - copia sem o modulo de aprovacao
+    aprovacao = None
+
 
 NOMES_ARQUIVO = {
     "xlsx": "controle_financeiro.xlsx",
@@ -361,6 +366,27 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
                     }
                 )
 
+        # ------------------------------------------------------------ aprovacao na planilha
+        # A decisao que o humano marcou na aba `Revisao` da rodada ANTERIOR vira pedido
+        # `validado` aqui - e so entao a linha pode entrar no livro-caixa. A leitura vem
+        # antes de escrever a planilha de proposito: a aprovacao de hoje entra no ledger de
+        # hoje, sem exigir uma rodada extra so para gravar.
+        aprovacao_planilha: dict[str, Any] = {
+            "lidas": 0,
+            "aprovadas": 0,
+            "rejeitadas": 0,
+            "ignoradas": 0,
+            "pendencias_fechadas": 0,
+            "avisos": [],
+        }
+        if aprovacao is not None:
+            aprovacao_planilha = aprovacao.aplicar_decisoes(conn, str(caminhos["xlsx"]))
+            avisos.extend(aprovacao_planilha["avisos"])
+        elif Path(caminhos["xlsx"]).exists():
+            avisos.append(
+                "modulo app/aprovacao.py ausente: a decisao da aba 'Revisao' nao foi aplicada"
+            )
+
         # ------------------------------------------------------------ planilha
         linhas_planilha = persistencia.escrever_ledger(
             conn, str(caminhos["xlsx"]), str(caminhos["csv"])
@@ -375,6 +401,11 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
             arquivos_gerados["painel"] = str(caminhos["painel"])
         else:
             avisos.append("modulo app/revisao.py ausente: fila de excecoes e painel nao foram gerados")
+
+        # A aba de revisao e reescrita por ULTIMO: ela reflete o que ainda esta aberto depois
+        # de a decisao da rodada anterior ter sido aplicada e o ledger ter sido escrito.
+        if aprovacao is not None:
+            aprovacao.exportar_revisao(conn, str(caminhos["xlsx"]))
     finally:
         try:
             conn.close()
@@ -398,6 +429,7 @@ def processar(inbox, out_dir, db_path, incluir_detalhes: bool = False) -> dict:
         "db": str(caminho_db),
         **contadores,
         "linhas_planilha": linhas_planilha,
+        "aprovacao_planilha": aprovacao_planilha,
         "auditoria_linhas_rodada": auditoria_linhas_rodada,
         "auditoria_linhas_total": auditoria_linhas_total,
         "por_motor": por_motor,

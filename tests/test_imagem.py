@@ -188,3 +188,120 @@ def test_imagem_atravessa_o_pipeline_e_chega_a_fila_com_os_campos(tmp_path):
     assert pendencia["emitente_cnpj"] == CNPJ_ALFA
     assert pendencia["numero_pedido"] == "1001"
     assert pendencia["valor_suspeito"] == "250,00"
+
+
+# ------------------------------------------------- preparo da imagem antes do OCR (F8-fase 4)
+#
+# Medido nas fotos reais que chegaram pelo canal: em escala original, 2 das 4 nao entregavam
+# o valor total. Preparo = cinza + escala normalizada + contraste, e DEPOIS duas passagens
+# (preparada e crua) unidas sem repetir linha.
+
+
+def reduzir_nota(origem: Path, destino: Path, fator: float) -> Path:
+    """Simula foto de celular: a mesma nota em resolucao menor."""
+    from PIL import Image
+
+    with Image.open(origem) as imagem:
+        reduzida = imagem.resize(
+            (round(imagem.width * fator), round(imagem.height * fator)), Image.LANCZOS
+        )
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    reduzida.save(destino)
+    return destino
+
+
+def test_imagem_preparada_normaliza_escala_e_tons_de_cinza(tmp_path):
+    imagem = desenhar_nota(tmp_path / "nota.png")
+    reduzida = reduzir_nota(imagem, tmp_path / "nota_pequena.png", 0.25)
+
+    preparada = ingress._imagem_preparada(reduzida)
+    assert preparada is not None, "sem PIL o preparo nao existe e a passagem crua assume"
+    assert preparada.mode == "L", "o OCR de foto trabalha em tons de cinza"
+    assert max(preparada.size) == ingress.ESCALA_OCR_ALVO, (
+        f"a escala nao foi normalizada: {preparada.size}"
+    )
+
+
+def test_imagem_acima_do_alvo_nao_e_reduzida(tmp_path):
+    """A escala so SOBE ate o alvo: foto grande nao perde pixel (nao se reduz a imagem)."""
+    from PIL import Image
+
+    imagem = desenhar_nota(tmp_path / "nota.png")
+    with Image.open(imagem) as base_img:
+        grande = tmp_path / "nota_grande.png"
+        base_img.resize((2000, round(base_img.height * 2000 / base_img.width)), Image.LANCZOS).save(grande)
+
+    preparada = ingress._imagem_preparada(grande)
+    assert max(preparada.size) == 2000, "imagem acima do alvo tem de passar intacta"
+
+
+def test_linha_repetida_das_duas_passagens_entra_uma_vez():
+    """A mesma linha lida nas duas passagens nao pode contar como duas.
+
+    Sem isso, uma nota com uma data viraria nota com "duas datas" e o extrator descartaria
+    a data por ambiguidade (regra de seguranca) - o preparo viraria piora.
+    """
+    passagem_1 = "NOTA FISCAL ELETRONICA\nDATA DE EMISSAO 17/03/2026\nVALOR TOTAL R$ 250,00"
+    passagem_2 = "nota fiscal eletronica\ndata de emissao 17/03/2026\nvalor total r$ 250,00"
+
+    unida = ingress.unir_leituras([passagem_1, passagem_2])
+    assert unida.splitlines() == passagem_1.splitlines(), (
+        "as linhas repetidas (mesmo com caixa diferente) tem de entrar uma vez so"
+    )
+
+    # A passagem 2 repete a linha do total (ja veio na 1) e acrescenta 2 linhas novas:
+    # cada linha entra 1 vez, na ordem - 5 linhas no total.
+    complementar = "VALOR TOTAL R$ 250,00\nCHAVE DE ACESSO\n3526037297338000023255001000001001196820125 0"
+    com_extra = ingress.unir_leituras([passagem_1, complementar])
+    assert com_extra.splitlines() == [
+        "NOTA FISCAL ELETRONICA",
+        "DATA DE EMISSAO 17/03/2026",
+        "VALOR TOTAL R$ 250,00",
+        "CHAVE DE ACESSO",
+        "3526037297338000023255001000001001196820125 0",
+    ], com_extra
+
+
+def test_imagem_pequena_demais_para_a_passagem_crua_e_lida_apos_o_preparo(tmp_path):
+    """A prova que interessa: foto pequena do celular nao vira "documento ilegivel"."""
+    import pytesseract
+    from PIL import Image
+
+    imagem = desenhar_nota(tmp_path / "nota.png")
+    reduzida = reduzir_nota(imagem, tmp_path / "nota_pequena.png", 0.25)
+
+    with Image.open(reduzida) as pequena:
+        cru = pytesseract.image_to_string(pequena, lang=ingress.idioma_ocr(pytesseract))
+    assert cru.strip() == "", (
+        "se a passagem crua ja lê, este teste perdeu o sentido: reavalie o preparo"
+    )
+
+    leitura = ingress.ocr_imagem(reduzida)
+    digitos = "".join(c for c in leitura.texto if c.isdigit())
+    assert "250,00" in leitura.texto, f"o preparo nao recuperou o valor: {leitura.texto[:200]!r}"
+    assert CHAVE_ALFA in digitos, "o preparo nao recuperou a chave de acesso"
+
+
+def test_imagem_real_do_celular_enche_o_maximo_de_campos_que_o_ocr_permite(tmp_path):
+    """Ponta a ponta com foto: preto no branco reduzido -> ancora o comportamento medido.
+
+    O que se fixa aqui e o PISO: tipo de documento, valor total e status de revisao. Campo
+    que o OCR de foto nao entrega com seguranca (CNPJ/data de nota de cliente real) nao
+    entra na assercao - prometer isso seria mentir sobre o motor.
+    """
+    from app import contratos, extracao as extracao_mod, persistencia
+
+    imagem = desenhar_nota(tmp_path / "nota.png")
+    reduzida = reduzir_nota(imagem, tmp_path / "nota_pequena.png", 0.4)
+
+    leitura = ingress.ocr_imagem(reduzida)
+    extracao = extracao_mod.extrair(
+        leitura.texto, str(reduzida), str(reduzida), motor=contratos.MOTOR_TESSERACT
+    )
+    status, _motivos = persistencia.decidir(extracao)
+
+    assert extracao.tipo_documento == "nf"
+    assert extracao.valor_total_centavos == VALOR_ALFA
+    assert status == contratos.STATUS_REVISAO_HUMANA, (
+        "leitura de OCR nunca auto-aprova: confianca base 0.65 fica abaixo do limiar 0.90"
+    )

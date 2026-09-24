@@ -72,6 +72,11 @@ IDIOMAS_OCR = ("por", "eng")
 # Resolucao (dpi) da rasterizacao da pagina antes do OCR. Ver a nota em `_ocr_tesseract`.
 RESOLUCAO_OCR_DPI = 300
 
+# Escala alvo (px no maior lado) da imagem antes do OCR. Medido nas fotos reais do canal:
+# foto de celular pequena lida em escala original nao entrega o valor total; normalizada
+# para ~1600 px ela entrega. Ver `_imagem_preparada`.
+ESCALA_OCR_ALVO = 1600
+
 
 def busca_ocr(texto: str) -> str:
     """Forma canonica usada para casar rotulos em texto nativo ou degradado por OCR.
@@ -266,8 +271,59 @@ def idioma_ocr(pytesseract_mod) -> str:
     return IDIOMAS_OCR[0]
 
 
+def _imagem_preparada(caminho: Path):
+    """Imagem em cinza, escala normalizada e contraste - ou None sem PIL.
+
+    Foto de celular chega em resolucao imprevisivel; o Tesseract ganha precisao com escala
+    de ~300 dpi. Medido nas 4 fotos reais do canal: sem isso nenhuma entregava o valor
+    total; com escala + contraste, 2 das 4 passaram a entregar (as outras 2 sao foto sem
+    texto legivel de verdade - nao ha pre-processamento que resolva).
+    """
+    try:
+        from PIL import Image, ImageOps
+    except Exception:  # sem PIL cai na passagem crua
+        return None
+    try:
+        with Image.open(caminho) as bruta:
+            imagem = ImageOps.exif_transpose(bruta).convert("L")
+            fator = ESCALA_OCR_ALVO / max(imagem.size)
+            if fator > 1.0:
+                imagem = imagem.resize(
+                    (max(1, round(imagem.width * fator)), max(1, round(imagem.height * fator))),
+                    Image.LANCZOS,
+                )
+            return ImageOps.autocontrast(imagem)
+    except Exception:
+        return None
+
+
+def unir_leituras(textos: Sequence[str]) -> str:
+    """Une passagens de OCR do MESMO documento sem repetir linha.
+
+    Duas passagens (imagem preparada + imagem original) recuperam linhas que uma so perde.
+    Mas repetir a mesma linha criaria "duas datas" no documento, e o extrator descarta data
+    ambigua de proposito: por isso a linha repetida entra UMA vez, na ordem da primeira
+    passagem, e a comparacao ignora caixa e espacos.
+    """
+    vistos: set[str] = set()
+    linhas: list[str] = []
+    for texto in textos:
+        for linha in (texto or "").splitlines():
+            chave = " ".join(linha.split()).upper()
+            if not chave or chave in vistos:
+                continue
+            vistos.add(chave)
+            linhas.append(linha.rstrip())
+    return "\n".join(linhas)
+
+
 def _tesseract_imagem(caminho: Path) -> Optional[TextoExtraido]:
-    """Tesseract real sobre uma imagem. None quando o motor nao existe na maquina."""
+    """Tesseract real sobre uma imagem: duas passagens unidas. None sem o motor.
+
+    Passagem 1 na imagem preparada (escala + contraste) e passagem 2 na imagem original:
+    a preparada recupera linhas pequenas/desbotadas; a crua preserva os digitos como estao,
+    sem risco de a escala trocar um numero legivel por outro parecido.
+    """
     try:
         import pytesseract  # type: ignore
     except Exception:
@@ -276,10 +332,21 @@ def _tesseract_imagem(caminho: Path) -> Optional[TextoExtraido]:
     if not localizar_tesseract():
         return None
 
+    idioma = idioma_ocr(pytesseract)
+    textos: list[str] = []
+    preparada = _imagem_preparada(Path(caminho))
+    if preparada is not None:
+        try:
+            textos.append(pytesseract.image_to_string(preparada, lang=idioma) or "")
+        except Exception:
+            pass  # a passagem crua ainda vale
     try:
-        texto = pytesseract.image_to_string(str(caminho), lang=idioma_ocr(pytesseract)) or ""
+        textos.append(pytesseract.image_to_string(str(caminho), lang=idioma) or "")
     except Exception:
+        pass
+    if not textos:
         return None
+    texto = unir_leituras(textos)
 
     return TextoExtraido(
         texto=texto,
@@ -540,6 +607,11 @@ def ler_mensagens_telegram(caminho_jsonl) -> list[MensagemBruta]:
             parte for parte in (autor.get("first_name"), autor.get("last_name")) if parte
         ) or str(autor.get("username") or "")
         texto, midia = _texto_e_midia_telegram(msg)
+        if envelope.get("arquivo_local") and not texto:
+            # Anexo ja baixado pela coleta: o ARQUIVO e o artefato (pasta de documentos,
+            # lido por OCR/camada de texto). Emitir tambem a mensagem vazia criaria uma
+            # segunda pendencia identica (`documento_ilegivel`) para a mesma nota.
+            continue
         saida.append(
             MensagemBruta(
                 canal=CANAL_TELEGRAM,
@@ -672,10 +744,13 @@ def ingerir(inbox) -> list[Artefato]:
 
 __all__ = [
     "EXTENSOES_IMAGEM",
+    "ESCALA_OCR_ALVO",
     "localizar_tesseract",
+    "idioma_ocr",
     "ler_pdf",
     "ocr_imagem",
     "ocr_pdf",
+    "unir_leituras",
     "ler_mensagens_whatsapp",
     "ler_mensagens_telegram",
     "ingerir",
