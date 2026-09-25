@@ -1,7 +1,7 @@
 {
-  "ts": "2026-09-24T15:40:12+00:00",
-  "rodada_id": "20260924-124009",
-  "rodada_inicio": "2026-09-24T15:40:09+00:00",
+  "ts": "2026-09-25T23:31:52+00:00",
+  "rodada_id": "20260925-203147",
+  "rodada_inicio": "2026-09-25T23:31:47+00:00",
   "inbox": "data\\mocks",
   "out_dir": "data\\out",
   "db": "data\\out\\pipeline.db",
@@ -13,14 +13,13 @@
   "revisao": 11,
   "rejeitados": 2,
   "deduplicados": 1,
-  "linhas_planilha": 7,
-  "aprovacao_planilha": {
-    "lidas": 0,
-    "aprovadas": 0,
-    "rejeitadas": 0,
-    "ignoradas": 0,
-    "pendencias_fechadas": 0,
-    "avisos": []
+  "linhas_planilha": 20,
+  "destaques_planilha": {
+    "ilegiveis": 0,
+    "contradicoes": 1,
+    "risco": 2,
+    "leituras_duvidosas": 13,
+    "linhas_destacadas": 16
   },
   "auditoria_linhas_rodada": 21,
   "auditoria_linhas_total": 21,
@@ -45,10 +44,10 @@
     "xlsx": "data\\out\\controle_financeiro.xlsx",
     "csv": "data\\out\\controle_financeiro.csv",
     "auditoria": "data\\out\\auditoria.jsonl",
-    "auditoria_rodada": "data\\out\\auditoria_rodada_20260924-124009.jsonl",
+    "auditoria_rodada": "data\\out\\auditoria_rodada_20260925-203147.jsonl",
     "db": "data\\out\\pipeline.db",
     "resumo": "data\\out\\resumo.json"
   },
-  "duracao_s": 3.01,
+  "duracao_s": 4.934,
   "avisos": []
 }

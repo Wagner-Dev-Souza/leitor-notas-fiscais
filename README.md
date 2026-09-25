@@ -33,9 +33,10 @@ Este sistema faz esse trabalho de leitura e digitação:
 - tira dali **fornecedor, CNPJ, número do pedido, datas, valor total e itens**;
 - **confere os números antes de acreditar neles** (a soma dos itens bate com o total? o CNPJ é
   válido? o valor faz sentido?);
-- grava na planilha **só o que passou na conferência**;
-- o que não passou vai para uma **fila de pendências** para uma pessoa conferir, com o motivo
-  escrito e o número que levantou a dúvida.
+- grava na planilha **toda nota que leu** - o que ficou duvidoso entra **destacado** (célula amarela,
+  célula vermelha ou linha vermelha), com campo não encontrado escrito como `NAO ENCONTRADO`;
+- o mesmo documento continua listado na **fila de pendências** (motivo, campo suspeito e dica), que
+  é o registro técnico do que a leitura achou duvidoso.
 
 Três garantias de negócio, em uma frase cada:
 
@@ -63,12 +64,12 @@ Três garantias de negócio, em uma frase cada:
   WhatsApp .jsonl─┤          │                   │            └───────┬────────┘            │
   Telegram .jsonl─┘          │                   │                    │                     │
                              v                   v                    v                     v
-                      normalização         produto padronizado   auto_aprovado ──────────> linha na planilha
-                      app/normaliza.py     (contratos.Extracao)  revisao_humana ──┐
-                      CNPJ, data, moeda    centavos inteiros     rejeitado ───────┤
-                                          data ISO             (CNPJ torto,       │
-                                          ausente = None        valor ilegível)    │
-                                                                                   v
+                      normalização         produto padronizado   TODA nota ─────────────> linha na planilha
+                      app/normaliza.py     (contratos.Extracao)  (com destaque no que │  (celula/linha pintada
+                      CNPJ, data, moeda    centavos inteiros     ficou duvidoso)      │   quando tem duvida)
+                                          data ISO             (CNPJ torto,          │
+                                          ausente = None        valor ilegivel)       │
+                                                                                    v
                                                                     ┌──────────────────────────────┐
                                                                     │  FILA DE PENDÊNCIAS          │
                                                                     │  data/out/fila_excecoes.json │
@@ -255,16 +256,53 @@ Motivos na fila de excecoes:
    divergencia_soma_itens             1
 ```
 
-Leitura das contagens: dos 21 artefatos lidos, **7 documentos foram aprovados** e viraram
-**7 linhas** na planilha; 11 foram para revisão humana (falta de detalhamento, divergência de
-soma, texto suspeito, valor ausente, baixa confiança - a foto da nota entra por baixa confiança, porque
-leitura de OCR não aprova sozinha); 2 foram rejeitados; 1 era **duplicata
-byte a byte** de outro arquivo e não gerou linha. "Rejeitado" e "em revisão" **não** entram na
-planilha - ficam na fila de pendências.
+Leitura das contagens: dos 21 artefatos lidos, **20 pedidos viraram linha** na planilha - o
+lançamento é direto: **toda nota entra**, com `status_validacao` dizendo o que precisa de olho
+humano (`OK`, `CONFERIR`, `ILEGIVEL`) e as células problemáticas **pintadas**. Das 20 linhas, 16
+saíram destacadas: 2 marcadas como risco (texto de instrução suspeita / suspeita de duplicidade),
+1 com valor contraditório (divergência de soma: valor em branco e célula vermelha) e 13 com
+leitura duvidosa (baixa confiança, CNPJ/chave com DV inválido, valor sem detalhamento). 1 artefato
+era **duplicata byte a byte** e não gerou linha.
 
 > **Rodar de novo não duplica.** Rodando o mesmo comando uma segunda vez, a saída mostra
-> `Deduplicados: 21` e **`Linhas na planilha: 7`** - mesmo número de linhas, zero duplicata.
+> `Deduplicados: 21` e **`Linhas na planilha: 20`** - mesmo número de linhas, zero duplicata.
 > É assim que se prova a idempotência (seção 9).
+
+### A nota entra SEMPRE - e a falha aparece pintada na planilha
+
+Regra de ouro deste produto, definida pelo cliente: **a nota nunca fica de fora por falta de
+certeza.** Toda nota lida gera linha na planilha principal. O que a leitura não conseguiu resolver
+não bloqueia a linha: **se destaca** para você achar em segundos. Não existe aba de revisão nem
+etapa de aprovação - a conferência é visual.
+
+**Legenda das cores** (o que cada destaque quer dizer):
+
+- **Célula amarela (`FFFFC000`)** - campo que pede conferência:
+  - `NAO ENCONTRADO` - o campo não estava no documento (ou o documento não trazia aquele dado);
+  - `ILEGIVEL` - o documento foi lido, mas aquele dado não deu para entender;
+  - valor **preenchido** com célula amarela - o dado foi lido, só que por leitura fraca (OCR de
+    foto, CNPJ/chave com dígito verificador torto, data ambígua/implausível, valor fora da faixa).
+- **Célula vermelha (`FFFF0000`)** - **valor contraditório**: o sistema leu, mas o número não
+  fecha (divergência entre a soma dos itens e o total, ou conflito com um pedido já conhecido). A
+  célula fica **em branco**: valor duvidoso não se afirma.
+- **Linha inteira vermelha** - risco: documento com texto de instrução suspeita (tentativa de
+  manipular o sistema) ou suspeita de duplicidade. Confira antes de qualquer coisa.
+- **Linha inteira amarelo claro (`FFFFF2CC`)** - a linha tem algo para conferir; sem isso, a linha
+  veio limpa e o `status_validacao` é `OK`.
+
+O extrato do que ficou destacado sai em toda rodada, no resumo do comando:
+
+```
+Planilha - linhas que pedem conferencia (destacadas):
+   total               16
+   ilegiveis           0
+   risco (linha verm.) 2
+   contradicoes        1
+   leitura duvidosa    13
+```
+
+O mesmo conteúdo continua em `data/out/fila_excecoes.json` (motivo, campo suspeito, dica e risco
+por documento), para quem preferir tratar em lote.
 
 ### Entrada por imagem (foto ou print da nota)
 
@@ -276,9 +314,10 @@ por pasta. Jogue o arquivo lá e rode o mesmo comando de sempre:
 ```
 
 O artefato entra com `origem=imagem` e motor `tesseract` (o OCR real). Como a leitura de OCR recebe
-confiança **0,65**, ela fica abaixo do limiar de aprovação automática (**0,90**): **toda nota vinda
-de imagem vai para a fila de revisão humana**, já com os campos extraídos e o motivo escrito. É o
-desenho do produto - OCR não publica sozinho - e não um defeito.
+confiança **0,65**, ela fica abaixo do limiar de aprovação automática (**0,90**): a nota **entra na
+planilha** com o valor que o OCR conseguiu ler e com as células **destacadas em amarelo** (leitura
+fraca), e os campos que o OCR não entregou saem como `NAO ENCONTRADO`. A foto passa por escala
+normalizada (1600 px) + contraste e por **duas passagens** de OCR antes disso.
 
 ### Verificação de idempotência (ferramenta do projeto)
 
@@ -576,10 +615,11 @@ OCR                 : nenhum artefato usou OCR simulado nesta rodada
 Auditoria           : 21 linha(s) nesta rodada | trilha cumulativa: 3176 linha(s)
 ```
 
-Na primeira rodada de uma máquina limpa os números são `7 auto-aprovados / 10 em revisão /
-2 rejeitados / 1 deduplicado` (seção 5). Aqui apareceu `Deduplicados: 20` porque a inbox já tinha
+Na primeira rodada de uma máquina limpa os números são `7 auto-aprovados / 11 em revisão /
+2 rejeitados / 1 deduplicado`, com **20 linhas** na planilha (toda nota entra; o que ficou duvidoso
+entra destacado). Aqui apareceu `Deduplicados: 21` porque a inbox já tinha
 sido processada antes: **é a idempotência funcionando, não um erro** - e `Linhas na planilha`
-continuou **7**.
+continuou **20**.
 
 **Modo real:**
 
@@ -667,7 +707,7 @@ seções 8 e 9; em resumo:
 | `controle_financeiro.csv` | A mesma planilha em CSV, para importar em outra ferramenta. | Sim. |
 | `auditoria.jsonl` | **A trilha de auditoria: nunca se apaga.** Acumula todas as rodadas, com `rodada_id` em cada linha. | **Não.** |
 | `auditoria_rodada_<AAAAMMDD-HHMMSS>.jsonl` | O recorte de **uma** execução. Serve para auditar "o que aconteceu naquela rodada". | Não (um por rodada). |
-| `fila_excecoes.json` | As pendências de revisão humana (seção 7.7). | Sim - é a fila do momento. |
+| `fila_excecoes.json` | O registro do que a leitura achou duvidoso (seção 7.7). | Sim - é o retrato do momento. |
 | `painel.html` | Painel visual para o operador, abre no navegador sem internet. | Sim. |
 | `resumo.json` | O resumo da rodada em formato de máquina (o mesmo da tela). | Sim. |
 | `pipeline.db` | **O banco SQLite: a fonte da verdade.** Histórico de documentos e pedidos. **Não apague** - é dele que sai a idempotência. | **Não.** |
@@ -771,26 +811,15 @@ soma dos itens não bate, a leitura ficou fraca, o documento manda fazer algo es
   Cada pendência traz `motivo_codigo`, `motivo` (a explicação), `campo_suspeito`, `risco`
   (`alto` / `medio`), `dica`, o `arquivo` de origem e o status (`aberta` até alguém resolver).
 
-**Como a pendência sai da fila: a aprovação é feita na planilha.** Cada rodada mantém na própria
-planilha uma segunda aba, **`Revisao`** - uma linha por pendência aberta, com o que a leitura
-conseguiu (`numero_pedido`, `emitente_nome`, `emitente_cnpj`, `data_emissao`, `valor_lido`,
-`confianca_texto`) mais o motivo, o risco e a dica. Para decidir, preencha **apenas** a coluna
-`DECISAO` e salve o arquivo (aceita `APROVAR`/`ok`/`sim`/`x` e `REJEITAR`/`não`/`n`):
+**A pendência não bloqueia nada.** Toda nota entra na planilha principal, com o destaque dizendo o
+que conferir (legenda das cores na seção 5). A fila de exceções continua existindo como **registro**
+do que a leitura achou duvidoso - é dela que sai o destaque da linha - e é o que você abre quando
+quer tratar em lote ou entender um caso específico. Não há decisão a tomar ali: a conferência é na
+própria planilha, célula por célula, e a correção de um valor é uma edição normal na célula.
 
-1. **Aprovar** - o pedido vira `validado` e a linha **entra na aba `controle_financeiro`** (nas 20
-   colunas do contrato) já na rodada seguinte. A pendência vira `resolvida`, com `resolvida_por`
-   (a coluna `REVISOR`) e `resolvida_em` gravados, e **sai da fila e da aba `Revisao`**.
-2. **Corrigir o que a leitura errou** - escreva o valor certo em `VALOR_TOTAL_CORRIGIDO`,
-   `NUMERO_PEDIDO_CORRIGIDO`, `EMITENTE_CNPJ_CORRIGIDO` ou `DATA_EMISSAO_CORRIGIDA` (aceita
-   `1234,56` e `1.234,56`). Só o que estiver preenchido é usado; o resto fica como está.
-3. **Rejeitar** - a pendência fecha como `rejeitado` (com o motivo no `decisao`) e **nada entra na
-   planilha**.
-
-**Aprovação sem valor não vira linha.** Se nem a leitura nem a conferência informaram o valor
-total, o sistema não escreve: a rodada registra o aviso `aprovacao sem valor total` e a pendência
-**continua aberta**. É deliberado - erro de valor é o pior modo de falha do projeto. Pelo mesmo
-motivo, rejeitar um pedido que **já está** no livro-caixa não altera nada (apagar linha é decisão
-humana no arquivo): a rodada avisa e segue.
+**O que NUNCA é inventado.** Campo que não veio vira `NAO ENCONTRADO`; dado que não deu para
+entender vira `ILEGIVEL`; número que não fecha (divergência/conflito) **fica em branco e vermelho**.
+Em nenhum caso o sistema preenche um valor plausível no lugar do dado real.
 
 **O que significa cada motivo** (é o vocabulário que aparece na fila e no painel):
 
@@ -912,15 +941,16 @@ interface do sistema.
 | 13 | `forma_pagamento` | Como foi pago (dinheiro, pix, boleto, prazo...). Vazio quando não foi encontrado. |
 | 14 | `qtd_itens` | Quantos itens foram lidos no documento. |
 | 15 | `chave_acesso_nf` | A chave de acesso da NF-e (44 dígitos). Vazio em pedido e em mensagem, que não têm chave. |
-| 16 | `confianca` | Nota de 0 a 1 para **a leitura deste documento**: quanto o sistema confia no que extraiu. Abaixo de 0,90, ou com campo obrigatório duvidoso, não entra automático. |
-| 17 | `status_validacao` | O veredito: `auto_aprovado`, `revisao_humana` ou `rejeitado`. **A planilha só recebe `auto_aprovado`.** |
+| 16 | `confianca` | Nota de 0 a 1 para **a leitura deste documento**: quanto o sistema confia no que extraiu. Abaixo de 0,90 a linha entra destacada (leitura fraca). |
+| 17 | `status_validacao` | O veredito, em linguagem de negócio: `OK` (linha limpa), `CONFERIR` (tem algo destacado) ou `ILEGIVEL` (nada foi lido no documento). |
 | 18 | `hash_conteudo` | A "impressão digital" (sha256) do arquivo/mensagem de origem. É por ela que o sistema reconhece um reenvio e não duplica. |
 | 19 | `arquivo_origem` | O caminho do arquivo que gerou a linha - para qualquer pessoa conseguir abrir o original e conferir. |
 | 20 | `row_id_planilha` | O número da linha **dentro do próprio arquivo**. É o que permite **atualizar no lugar** em vez de acrescentar linha nova. |
 
-Regra de leitura: **linha na planilha é dinheiro aprovado.** Se um documento ficou em dúvida, ele
-não aparece aqui - aparece em `data/out/fila_excecoes.json`, com o motivo e o valor que levantou
-a suspeita.
+Regra de leitura: **linha na planilha é a nota lida.** Toda nota entra - a diferença entre uma linha
+limpa e uma linha duvidosa é a **cor**: célula amarela = confira aquele campo; célula vermelha =
+valor que não fecha (ficou em branco); linha vermelha = risco (instrução suspeita ou duplicidade).
+A mesma informação aparece em `data/out/fila_excecoes.json`, com motivo, campo suspeito e dica.
 
 Arquivos gerados em `data/out/`:
 

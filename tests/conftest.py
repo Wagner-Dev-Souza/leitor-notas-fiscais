@@ -306,6 +306,35 @@ def linhas_planilha(xlsx: Path) -> list[dict]:
     return linhas
 
 
+def destaques_da_planilha(xlsx: Path) -> dict[str, dict]:
+    """Mapa do destaque visual da planilha: `{numero_pedido: {"celulas": {...}, "linha": cor}}`.
+
+    Cor de celula: `FFFFC000` = amarelo (campo a conferir), `FFFF0000` = vermelho (risco ou valor
+    contraditorio). `FFFFF2CC` e o fundo claro da LINHA que pede atencao.
+    """
+    from openpyxl import load_workbook
+
+    planilha = load_workbook(xlsx).active
+    cabecalho = [c.value for c in planilha[1]]
+    posicao_numero = cabecalho.index("numero_pedido")
+    saida: dict[str, dict] = {}
+    for linha in planilha.iter_rows(min_row=2):
+        if all(celula.value is None for celula in linha):
+            continue
+        numero = str(linha[posicao_numero].value)
+        celulas: dict[str, str] = {}
+        cores_linha: set[str] = set()
+        for indice, celula in enumerate(linha):
+            fundo = celula.fill.fgColor.rgb if (celula.fill and celula.fill.fill_type) else None
+            if fundo in (None, "00000000"):
+                continue
+            cores_linha.add(fundo)
+            if fundo != "FFFFF2CC":
+                celulas[cabecalho[indice]] = fundo
+        saida[numero] = {"celulas": celulas, "linha": cores_linha}
+    return saida
+
+
 def ler_auditoria(caminho: Path) -> list[dict]:
     return [
         json.loads(linha)

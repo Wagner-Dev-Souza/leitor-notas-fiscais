@@ -1127,16 +1127,233 @@ def registrar_auditoria(caminho_jsonl: Any, registro: dict) -> None:
 # ------------------------------------------------------------------ planilha (destino, nao fonte)
 
 
+# ------------------------------------------- lancamento direto com destaque (PO, 25/09/2026)
+#
+# Decisao do cliente: TODA nota vai para a planilha, sem aprovacao manual e sem aba de revisao.
+# A conferencia passa a ser visual, na propria linha - e o que nao veio certo se destaca:
+#
+#   campo nao encontrado .......... texto "NAO ENCONTRADO" + celula AMARELA
+#   documento ilegivel ............ texto "ILEGIVEL"      + celula AMARELA
+#   valor contraditorio ........... celula VERMELHA, sem numero (valor duvidoso nao se afirma)
+#   leitura duvidosa (OCR, DV, data) valor lido          + celula AMARELA
+#
+# A linha inteira fica com fundo amarelo claro quando tem algo a conferir: e assim que se acha a
+# falha sem ler documento por documento. O status da coluna `status_validacao` tambem vira rotulo
+# de negocio (OK / CONFERIR / ILEGIVEL) em vez do codigo interno.
+TEXTO_NAO_ENCONTRADO = "NAO ENCONTRADO"
+TEXTO_ILEGIVEL = "ILEGIVEL"
+
+# Nome das abas da planilha. `Revisao` e o nome HISTORICO da aba de aprovacao: nao se cria mais,
+# e a rodada apaga se encontrar uma (o produto passou a lancar direto).
+ABA_OFICIAL = "controle_financeiro"
+ABA_REVISAO_ANTIGA = "Revisao"
+
+MARCA_OK = "ok"
+MARCA_AUSENTE = "ausente"
+MARCA_ILEGIVEL = "ilegivel"
+MARCA_LEITURA = "leitura"            # valor presente, leitura fraca/duvidosa
+MARCA_CONTRADICAO = "contradicao"    # valor presente, mas contradiz outra informacao
+
+COR_ATENCAO = "FFFFF2CC"        # fundo da linha que tem algo a conferir (amarelo claro)
+COR_CONFERIR = "FFFFC000"       # celula do campo nao encontrado / ilegivel / leitura fraca
+COR_CONTRADICAO = "FFFF0000"    # celula do valor contraditorio (vermelho)
+
+STATUS_PLANILHA_OK = "OK"
+STATUS_PLANILHA_CONFERIR = "CONFERIR"
+STATUS_PLANILHA_ILEGIVEL = "ILEGIVEL"
+
+# Campos de conteudo: sao eles que o financeiro confere na planilha.
+CAMPOS_DESTAQUE: tuple[str, ...] = (
+    "numero_pedido",
+    "emitente_nome",
+    "emitente_cnpj",
+    "data_emissao",
+    "valor_total",
+    "valor_total_centavos",
+    "chave_acesso_nf",
+)
+
+# Coluna da planilha -> coluna do banco onde o valor vive de verdade. `valor_total` so existe na
+# planilha (e a string BR formatada); quem diz se o valor esta preenchido e `valor_total_centavos`.
+_CAMPO_PLANILHA_PARA_PEDIDO = {
+    "numero_pedido": "numero_pedido",
+    "emitente_nome": "emitente_nome",
+    "emitente_cnpj": "emitente_cnpj",
+    "data_emissao": "data_emissao",
+    "valor_total": "valor_total_centavos",
+    "valor_total_centavos": "valor_total_centavos",
+    "chave_acesso_nf": "chave_acesso",
+}
+
+# Motivo -> efeito. O CAMPO de cada motivo vem de `revisao.info_motivo` (fonte unica).
+MOTIVOS_ILEGIVEL = (
+    contratos.MOTIVO_DOC_ILEGIVEL,
+    contratos.MOTIVO_SEM_CAMPOS_OBRIGATORIOS,
+)
+MOTIVOS_CONTRADICAO = (
+    contratos.MOTIVO_DIVERGENCIA_ITENS,
+    contratos.MOTIVO_CONFLITO_VALOR,
+    contratos.MOTIVO_POSSIVEL_DUPLICATA,
+)
+# Motivos que pintam a LINHA inteira de vermelho: nao e duvida de leitura, e risco.
+MOTIVOS_DE_RISCO = (
+    contratos.MOTIVO_INJECAO_SUSPEITA,
+    contratos.MOTIVO_POSSIVEL_DUPLICATA,
+    contratos.MOTIVO_CONFLITO_VALOR,
+)
+# Todo o resto (baixa_confianca, CNPJ/chave com DV invalido, data ambigua/implausivel, valor fora
+# da faixa, suspeita de soma, total sem detalhamento, injecao de instrucao) = leitura duvidosa:
+# o valor LIDO fica visivel e a celula se destaca.
+_CAMPO_DO_MOTIVO_PARA_COLUNA = {
+    "valor_total": ("valor_total", "valor_total_centavos"),
+    "emitente_cnpj": ("emitente_cnpj",),
+    "chave_acesso_nf": ("chave_acesso_nf",),
+    "data_emissao": ("data_emissao",),
+    "numero_pedido": ("numero_pedido",),
+    "emitente_nome": ("emitente_nome",),
+}
+
+
+def _motivos_do_pedido(conn: sqlite3.Connection, pedido_id: str, documento_id: str) -> set[str]:
+    """Motivos ja registrados para o pedido/documento (qualquer status da pendencia).
+
+    A pendencia nao decide mais nada: ela e a memoria do que a leitura achou duvidoso, e e dela
+    que sai o destaque da linha.
+    """
+    linhas = conn.execute(
+        """
+        SELECT motivo_codigo FROM fila_excecoes
+         WHERE pedido_id = ? OR (documento_id = ? AND (pedido_id IS NULL OR pedido_id = ''))
+        """,
+        (pedido_id or "", documento_id or ""),
+    ).fetchall()
+    return {str(linha[0]) for linha in linhas if linha[0]}
+
+
+def _marcas_da_linha(
+    conn: sqlite3.Connection, registro: Any
+) -> tuple[dict[str, str], bool, bool]:
+    """Marca cada campo de conteudo. -> `(marcas, atencao, linha_de_risco)`.
+
+    Precedencia por campo: ilegivel > nao encontrado > contradicao > leitura duvidosa.
+    Motivo que nao aponta para um campo da planilha (confianca, itens, texto) marca a LEITURA
+    inteira como duvidosa - e o que o cliente pediu: achou o valor, mas tem duvida, pinta de
+    amarelo. Injeção de instrucao e suspeita de duplicidade pintam a LINHA de vermelho.
+    """
+    from . import revisao  # import tardio: revisao nao depende deste modulo no topo
+
+    marcas = {campo: MARCA_OK for campo in CAMPOS_DESTAQUE}
+    motivos = _motivos_do_pedido(conn, str(registro["id"]), str(registro["documento_id"] or ""))
+
+    if motivos & set(MOTIVOS_ILEGIVEL):
+        # Nada foi lido: afirmar ausencia campo a campo nao ajuda ninguem.
+        return {campo: MARCA_ILEGIVEL for campo in CAMPOS_DESTAQUE}, True, False
+
+    for campo in CAMPOS_DESTAQUE:
+        valor = registro[_CAMPO_PLANILHA_PARA_PEDIDO[campo]]
+        if valor is None or str(valor).strip() == "":
+            marcas[campo] = MARCA_AUSENTE
+
+    duvida_de_leitura = False
+    for motivo in motivos:
+        colunas = _CAMPO_DO_MOTIVO_PARA_COLUNA.get(revisao.info_motivo(motivo)["campo"], ())
+        if not colunas:
+            # Motivo sem campo proprio: atinge a leitura como um todo.
+            duvida_de_leitura = True
+            continue
+        for coluna in colunas:
+            if motivo in MOTIVOS_CONTRADICAO:
+                marcas[coluna] = MARCA_CONTRADICAO
+            elif marcas[coluna] == MARCA_OK:
+                marcas[coluna] = MARCA_LEITURA
+
+    if duvida_de_leitura:
+        for campo in CAMPOS_DESTAQUE:
+            if marcas[campo] == MARCA_OK:
+                marcas[campo] = MARCA_LEITURA
+
+    linha_de_risco = bool(motivos & set(MOTIVOS_DE_RISCO))
+    atencao = bool(motivos) or any(marca != MARCA_OK for marca in marcas.values())
+    return marcas, atencao, linha_de_risco
+
+
+def _valores_linha_destacada(conn: sqlite3.Connection, registro: Any) -> tuple[dict, dict, bool, bool]:
+    """`(valores, marcas, atencao, linha_de_risco)` da linha, ja com os textos de ausencia."""
+    marcas, atencao, linha_de_risco = _marcas_da_linha(conn, registro)
+    valores = _valores_linha(registro)
+    for campo, marca in marcas.items():
+        if marca == MARCA_ILEGIVEL:
+            valores[campo] = TEXTO_ILEGIVEL
+        elif marca == MARCA_AUSENTE:
+            valores[campo] = TEXTO_NAO_ENCONTRADO
+        elif marca == MARCA_CONTRADICAO:
+            valores[campo] = ""  # valor duvidoso nao se afirma
+
+    if any(marca == MARCA_ILEGIVEL for marca in marcas.values()):
+        valores["status_validacao"] = STATUS_PLANILHA_ILEGIVEL
+    elif atencao:
+        valores["status_validacao"] = STATUS_PLANILHA_CONFERIR
+    else:
+        valores["status_validacao"] = STATUS_PLANILHA_OK
+    return valores, marcas, atencao, linha_de_risco
+
+
+def contar_linhas_destacadas(conn: sqlite3.Connection) -> dict[str, int]:
+    """Placar do destaque: quantas linhas da planilha pedem conferencia, e de que tipo.
+
+    Ordem de gravidade por linha: ilegivel > contradicao > leitura duvidosa.
+    """
+    placar = {
+        "ilegiveis": 0,
+        "contradicoes": 0,
+        "risco": 0,
+        "leituras_duvidosas": 0,
+        "linhas_destacadas": 0,
+    }
+    for registro in _linhas_para_planilha(conn):
+        marcas, atencao, linha_de_risco = _marcas_da_linha(conn, registro)
+        valores = set(marcas.values())
+        if not atencao:
+            continue
+        placar["linhas_destacadas"] += 1
+        if MARCA_ILEGIVEL in valores:
+            placar["ilegiveis"] += 1
+        elif linha_de_risco:
+            placar["risco"] += 1
+        elif MARCA_CONTRADICAO in valores:
+            placar["contradicoes"] += 1
+        else:
+            placar["leituras_duvidosas"] += 1
+    return placar
+
+
 def _linhas_para_planilha(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """TODOS os pedidos vao para a planilha (lancamento direto: nada fica de fora).
+
+    Quem marca o que precisa de olho humano e o destaque da linha (`_marcas_da_linha`), nao o
+    direito de entrar no livro-caixa.
+
+    Excecao unica: **mensagem sem texto e sem nada lido** nao e nota - e envelope de mensagem
+    (arquivo `.jsonl`) que chegou vazio ou cujo anexo ja virou artefato proprio (a imagem lida
+    tem a linha dela). Essa linha nao entra; o rastro dela continua na auditoria e na fila.
+    """
     return conn.execute(
-        f"""
+        """
         SELECT p.*,
                (SELECT COUNT(*) FROM itens_pedido i WHERE i.pedido_id = p.id) AS qtd_itens
         FROM pedidos p
-        WHERE p.status IN ({",".join("?" for _ in STATUS_VALIDADO_PLANILHA)})
+        LEFT JOIN documentos d ON d.id = p.documento_id
+        WHERE NOT (
+            d.arquivo_uri LIKE '%.jsonl'
+            AND p.valor_total_centavos IS NULL
+            AND p.numero_pedido IS NULL
+            AND p.emitente_cnpj IS NULL
+            AND p.emitente_nome IS NULL
+            AND p.data_emissao IS NULL
+            AND p.chave_acesso IS NULL
+        )
         ORDER BY p.rowid
-        """,
-        STATUS_VALIDADO_PLANILHA,
+        """
     ).fetchall()
 
 
@@ -1190,13 +1407,17 @@ def escrever_ledger(conn: sqlite3.Connection, caminho_xlsx: Any, caminho_csv: An
     """Grava a planilha de controle (openpyxl) e o CSV equivalente.
 
     - Exatamente as 20 colunas de `contratos.COLUNAS_PLANILHA`, na ordem, uma linha por
-      `pedido_id`, e so pedidos com status `auto_aprovado`/`validado`.
-    - `row_id_planilha` existe na linha -> **atualiza** aquela linha fisica; senao faz
-      append e grava o row_id em `pedidos`.
+      `pedido_id`: **todo pedido entra** (lancamento direto decidido pelo PO em 25/09/2026).
+    - O que nao veio certo nao fica de fora: entra marcado - texto `NAO ENCONTRADO`/`ILEGIVEL`
+      e celula/linha destacada (`_marcas_da_linha`).
+    - `row_id_planilha` e a posicao da linha na planilha: o corpo e reescrito por inteiro a cada
+      rodada (a planilha e DESTINO regeneravel, o banco e a fonte) e o `pedidos` guarda a posicao
+      atual. Por isso rodar duas vezes nao duplica linha.
     - `valor_total` e a string BR (`contratos.formatar_brl`) e `valor_total_centavos` e int.
     - Chamar duas vezes nao duplica linha: devolve o numero de linhas do ledger.
     """
     from openpyxl import Workbook, load_workbook
+    from openpyxl.styles import PatternFill
 
     destino_xlsx = Path(caminho_xlsx)
     destino_csv = Path(caminho_csv)
@@ -1207,40 +1428,57 @@ def escrever_ledger(conn: sqlite3.Connection, caminho_xlsx: Any, caminho_csv: An
     registros = _linhas_para_planilha(conn)
     if destino_xlsx.exists():
         wb = load_workbook(destino_xlsx)
-        ws = wb.active
+        # A aba de revisao saiu do produto (lancamento direto): se sobrou de uma rodada antiga,
+        # ela sai daqui - planilha com duas verdades confunde quem confere.
+        if ABA_REVISAO_ANTIGA in wb.sheetnames:
+            del wb[ABA_REVISAO_ANTIGA]
+        ws = wb[ABA_OFICIAL] if ABA_OFICIAL in wb.sheetnames else wb.active
+        ws.title = ABA_OFICIAL
     else:
         wb = Workbook()
         ws = wb.active
-        ws.title = "controle_financeiro"
+        ws.title = ABA_OFICIAL
+    wb.active = wb.sheetnames.index(ABA_OFICIAL)
     _escrever_cabecalho(ws)
-    mapa = _mapa_linhas_existentes(ws)
+    # A planilha e DESTINO regeneravel a partir do banco: o corpo antigo e reescrito por inteiro.
+    # Sem isso, linha que saiu do ledger (mensagem sem texto, pedido removido) ficaria de heranca
+    # e a planilha mostraria uma verdade que o banco nao tem mais.
+    if ws.max_row > 1:
+        ws.delete_rows(2, ws.max_row)
+
+    preenchimento_atencao = PatternFill("solid", fgColor=COR_ATENCAO)
+    preenchimento_conferir = PatternFill("solid", fgColor=COR_CONFERIR)
+    preenchimento_contradicao = PatternFill("solid", fgColor=COR_CONTRADICAO)
+    preenchimento_limpo = PatternFill(fill_type=None)
 
     linhas_saida: list[dict] = []
+    fisica = 2
     for registro in registros:
-        row_id = (registro["row_id_planilha"] or "").strip()
-        fisica: Optional[int] = None
-        if row_id in mapa and mapa[row_id] == registro["id"]:
-            fisica = int(row_id)
-        if fisica is None:
-            fisica = max(ws.max_row + 1, 2)
-
-        data_processamento = registro["data_processamento"]
-        if not data_processamento and fisica <= ws.max_row:
-            existente = ws.cell(row=fisica, column=1).value
-            data_processamento = existente or None
-        if not data_processamento:
-            data_processamento = _agora_iso()
+        data_processamento = registro["data_processamento"] or _agora_iso()
 
         registro_dict = dict(registro)
         registro_dict["data_processamento"] = data_processamento
         registro_dict["row_id_planilha"] = str(fisica)
-        valores = _valores_linha(registro_dict)
+        valores, marcas, atencao, linha_de_risco = _valores_linha_destacada(conn, registro_dict)
 
         for indice, nome in enumerate(contratos.COLUNAS_PLANILHA, start=1):
             valor = valores[nome]
-            ws.cell(row=fisica, column=indice, value=valor if valor != "" else None)
+            celula = ws.cell(row=fisica, column=indice, value=valor if valor != "" else None)
+            marca = marcas.get(nome)
+            if marca in (MARCA_ILEGIVEL, MARCA_AUSENTE, MARCA_LEITURA):
+                celula.fill = preenchimento_conferir
+            elif marca == MARCA_CONTRADICAO:
+                celula.fill = preenchimento_contradicao
+            elif linha_de_risco:
+                celula.fill = preenchimento_contradicao
+            elif atencao:
+                celula.fill = preenchimento_atencao
+            else:
+                celula.fill = preenchimento_limpo
 
-        if row_id != str(fisica) or not data_processamento:
+        if (registro["row_id_planilha"] or "").strip() != str(fisica) or not registro[
+            "data_processamento"
+        ]:
             with conn:
                 conn.execute(
                     """UPDATE pedidos SET row_id_planilha = ?, data_processamento = ?,
@@ -1248,6 +1486,7 @@ def escrever_ledger(conn: sqlite3.Connection, caminho_xlsx: Any, caminho_csv: An
                     (str(fisica), data_processamento, _agora_iso(), registro["id"]),
                 )
         linhas_saida.append(valores)
+        fisica += 1
 
     wb.save(destino_xlsx)
 

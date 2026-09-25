@@ -131,8 +131,8 @@ def test_rajada_processa_tudo_e_a_contabilidade_fecha(inbox_rajada, tmp_path):
     )
     assert baldes == TOTAL, f"a contabilidade nao fecha: {baldes} de {TOTAL}"
     assert resumo["deduplicados"] == 0, "documentos distintos nao podem deduplicar entre si"
-    assert resumo["linhas_planilha"] == resumo["auto_aprovados"], (
-        "a planilha publica exatamente os aprovados"
+    assert resumo["linhas_planilha"] == TOTAL, (
+        "lancamento direto: todo artefato processado vira linha na planilha"
     )
 
     registros = [
