@@ -130,6 +130,17 @@ def _linhas_resumo(resumo: dict, verbose: bool, contexto: dict) -> list[str]:
         linhas.append("Motivos na fila de excecoes:")
         for motivo, qtd in resumo["motivos"].items():
             linhas.append(f"   {motivo:34s} {qtd}")
+    aprovacao = resumo.get("aprovacao_planilha") or {}
+    if aprovacao.get("lidas"):
+        # So aparece quando houve decisao humana preenchida na aba `Revisao`: e o registro de
+        # que a fila andou (aprovacao vira linha na planilha e fecha a pendencia).
+        linhas.append(_linha())
+        linhas.append("Aprovacao na planilha (aba Revisao):")
+        linhas.append(f"   lidas               {aprovacao.get('lidas', 0)}")
+        linhas.append(f"   aprovadas           {aprovacao.get('aprovadas', 0)}")
+        linhas.append(f"   rejeitadas          {aprovacao.get('rejeitadas', 0)}")
+        linhas.append(f"   ignoradas           {aprovacao.get('ignoradas', 0)}")
+        linhas.append(f"   pendencias fechadas {aprovacao.get('pendencias_fechadas', 0)}")
     linhas.append(_linha())
     linhas.append("Arquivos gerados:")
     for chave in (

@@ -1,10 +1,10 @@
 {
-  "ts": "2026-09-22T10:50:08+00:00",
-  "rodada_id": "20260922-075004",
-  "rodada_inicio": "2026-09-22T10:50:04+00:00",
-  "inbox": "<local>                                                                  \\data\\mocks",
-  "out_dir": "<local>                                                                  \\data\\out",
-  "db": "<local>                                                                  \\data\\out\\pipeline.db",
+  "ts": "2026-09-24T15:40:12+00:00",
+  "rodada_id": "20260924-124009",
+  "rodada_inicio": "2026-09-24T15:40:09+00:00",
+  "inbox": "data\\mocks",
+  "out_dir": "data\\out",
+  "db": "data\\out\\pipeline.db",
   "artefatos": 21,
   "pdfs": 12,
   "imagens": 1,
@@ -14,6 +14,14 @@
   "rejeitados": 2,
   "deduplicados": 1,
   "linhas_planilha": 7,
+  "aprovacao_planilha": {
+    "lidas": 0,
+    "aprovadas": 0,
+    "rejeitadas": 0,
+    "ignoradas": 0,
+    "pendencias_fechadas": 0,
+    "avisos": []
+  },
   "auditoria_linhas_rodada": 21,
   "auditoria_linhas_total": 21,
   "por_motor": {
@@ -32,15 +40,15 @@
     "divergencia_soma_itens": 1
   },
   "arquivos": {
-    "fila_excecoes": "<local>                                                                  \\data\\out\\fila_excecoes.json",
-    "painel": "<local>                                                                  \\data\\out\\painel.html",
-    "xlsx": "<local>                                                                  \\data\\out\\controle_financeiro.xlsx",
-    "csv": "<local>                                                                  \\data\\out\\controle_financeiro.csv",
-    "auditoria": "<local>                                                                  \\data\\out\\auditoria.jsonl",
-    "auditoria_rodada": "<local>                                                                  \\data\\out\\auditoria_rodada_20260922-075004.jsonl",
-    "db": "<local>                                                                  \\data\\out\\pipeline.db",
-    "resumo": "<local>                                                                  \\data\\out\\resumo.json"
+    "fila_excecoes": "data\\out\\fila_excecoes.json",
+    "painel": "data\\out\\painel.html",
+    "xlsx": "data\\out\\controle_financeiro.xlsx",
+    "csv": "data\\out\\controle_financeiro.csv",
+    "auditoria": "data\\out\\auditoria.jsonl",
+    "auditoria_rodada": "data\\out\\auditoria_rodada_20260924-124009.jsonl",
+    "db": "data\\out\\pipeline.db",
+    "resumo": "data\\out\\resumo.json"
   },
-  "duracao_s": 3.98,
+  "duracao_s": 3.01,
   "avisos": []
 }

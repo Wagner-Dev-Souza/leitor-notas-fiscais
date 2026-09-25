@@ -776,6 +776,27 @@ soma dos itens não bate, a leitura ficou fraca, o documento manda fazer algo es
   Cada pendência traz `motivo_codigo`, `motivo` (a explicação), `campo_suspeito`, `risco`
   (`alto` / `medio`), `dica`, o `arquivo` de origem e o status (`aberta` até alguém resolver).
 
+**Como a pendência sai da fila: a aprovação é feita na planilha.** Cada rodada mantém na própria
+planilha uma segunda aba, **`Revisao`** - uma linha por pendência aberta, com o que a leitura
+conseguiu (`numero_pedido`, `emitente_nome`, `emitente_cnpj`, `data_emissao`, `valor_lido`,
+`confianca_texto`) mais o motivo, o risco e a dica. Para decidir, preencha **apenas** a coluna
+`DECISAO` e salve o arquivo (aceita `APROVAR`/`ok`/`sim`/`x` e `REJEITAR`/`não`/`n`):
+
+1. **Aprovar** - o pedido vira `validado` e a linha **entra na aba `controle_financeiro`** (nas 20
+   colunas do contrato) já na rodada seguinte. A pendência vira `resolvida`, com `resolvida_por`
+   (a coluna `REVISOR`) e `resolvida_em` gravados, e **sai da fila e da aba `Revisao`**.
+2. **Corrigir o que a leitura errou** - escreva o valor certo em `VALOR_TOTAL_CORRIGIDO`,
+   `NUMERO_PEDIDO_CORRIGIDO`, `EMITENTE_CNPJ_CORRIGIDO` ou `DATA_EMISSAO_CORRIGIDA` (aceita
+   `1234,56` e `1.234,56`). Só o que estiver preenchido é usado; o resto fica como está.
+3. **Rejeitar** - a pendência fecha como `rejeitado` (com o motivo no `decisao`) e **nada entra na
+   planilha**.
+
+**Aprovação sem valor não vira linha.** Se nem a leitura nem a conferência informaram o valor
+total, o sistema não escreve: a rodada registra o aviso `aprovacao sem valor total` e a pendência
+**continua aberta**. É deliberado - erro de valor é o pior modo de falha do projeto. Pelo mesmo
+motivo, rejeitar um pedido que **já está** no livro-caixa não altera nada (apagar linha é decisão
+humana no arquivo): a rodada avisa e segue.
+
 **O que significa cada motivo** (é o vocabulário que aparece na fila e no painel):
 
 | Motivo (`motivo_codigo`) | Risco | Em português, o que aconteceu |
@@ -808,9 +829,18 @@ de envelope, no mesmo formato de `data/mocks/telegram/*.jsonl`. As mensagens de 
 filtradas por `TELEGRAM_CHAT_ID`. Grava **um** arquivo por coleta:
 `<INBOX_DIR>/telegram/telegram_coleta_<AAAAMMDD-HHMMSS>.jsonl`.
 
+**Anexo é baixado.** Nota mandada como **foto** ou **arquivo (PDF)** no canal não fica só como
+metadado: a coleta chama `getFile` e **baixa o arquivo** para a pasta de documentos da inbox
+(`<INBOX_DIR>/pdf/telegram_<id>.<ext>`), o mesmo lugar onde o pipeline lê imagem (OCR) e PDF
+(camada de texto). O envelope fica com `arquivo_local` apontando para o arquivo gravado, e a
+mensagem vazia não vira pendência duplicada - o artefato é o arquivo. Limites do Bot API que
+valem aqui: anexo acima de **20 MB** não é baixado (a rodada registra o aviso e segue) e foto
+chega na resolução que o Telegram entrega ao bot (a maior do lote enviado).
+
 - Sem mensagem nova: **não é erro** - ele diz "getUpdates sem update novo" e segue.
 - Credencial recusada pela API: vira uma mensagem clara citando `TELEGRAM_BOT_TOKEN`, **sem
   imprimir o token**.
+- Falha ao baixar **um** anexo também não derruba a coleta: o motivo entra nos avisos da rodada.
 
 **WhatsApp - o produto recebe (webhook local).** O WhatsApp Cloud API não tem "buscar mensagens":
 a Meta **empurra** cada mensagem para um endereço seu. Por isso existe um receptor local:
@@ -987,21 +1017,27 @@ máquina. O que **está** provado: PDF escaneado e **imagem** entram, passam pel
 a confiança de OCR (0,65 em vez de 0,95) e **vão para revisão humana** - nunca para a planilha sem
 conferência de uma pessoa. A confiança **por campo** também segue a origem da leitura: quem leu acompanha a extração (`extrair(..., motor=...)`), então texto vindo do motor real - PDF escaneado sem sidecar ou imagem - pontua com a base de OCR (0,65), e não com a base nativa. Foi essa emenda que fechou a última brecha em que uma leitura de OCR podia se passar por leitura nativa.
 
-**O que ainda NÃO está medido:** acurácia de OCR em foto de nota de
-verdade (ângulo, sombra, papel amassado, celular na mão). O material deste repositório é sintético
-e limpo, e os limiares são os do desenho do produto, não calibrados contra foto real.
+**O que foi medido em foto de verdade (canal real).** Depois da entrega inicial, o canal do Telegram
+do cliente recebeu **4 fotos** de notas e elas foram lidas ponta a ponta. Resultado honesto: **2 das 4
+entregaram o valor total** (uma NFC-e com `R$ 43,20`, uma DANFE com `R$ 76,66`), as duas em revisão
+humana, com CNPJ e data ainda **não** lidos; as outras 2 não têm texto legível (foto tremida/escura) e
+caem como `documento_ilegivel`. Foi desse uso real que saíram duas correções: a imagem passa por
+**escala normalizada (1600 px no maior lado) + contraste** antes do OCR e a leitura usa **duas
+passagens** (imagem preparada + original), unidas sem repetir linha. Medido no mesmo material: em
+escala original, uma foto pequena lia **0 caractere**; com o preparo, ela entrega valor e chave. O
+que **continua fora**: tolerância a foto torta/sombria e leitura de CNPJ/data em foto de nota de
+fornecedor real - hoje isso cai para a conferência humana, que é o desenho do produto.
 
-**2. Os canais são mock com o envelope real - e a coleta real NÃO foi exercitada com credencial.**
-As mensagens usadas na demonstração são **arquivos de mock** (`data/mocks/whatsapp/*.jsonl`,
+**2. Os canais são mock com o envelope real - e o Telegram real JÁ foi exercitado com o token do
+cliente.** As mensagens da demonstração são **arquivos de mock** (`data/mocks/whatsapp/*.jsonl`,
 `data/mocks/telegram/*.jsonl`) escritos no **formato real** dos envelopes do WhatsApp Cloud API e
-do Telegram Bot API. Em cima disso, a **coleta real foi implementada**: o produto sabe buscar no
-Telegram (`getUpdates`) e receber no WhatsApp (receptor de webhook local), e converte tudo no mesmo
-formato de envelope. Ela foi **testada contra um stub HTTP local (`127.0.0.1`)**, que provou a
-montagem da requisição, a gravação do envelope e o ciclo completo até a planilha. **O que não
-aconteceu:** a chamada **credenciada** a `api.telegram.org` e a `graph.facebook.com` **não foi
-executada** - não existe token nem número real autorizado nesta entrega. Portanto: **nenhuma
-mensagem real de WhatsApp ou Telegram passou por este sistema.** O que está provado é o mecanismo,
-não a integração com as contas do cliente.
+do Telegram Bot API. Em cima disso, a coleta real está implementada: o produto busca no Telegram
+(`getUpdates`) e recebe no WhatsApp (receptor de webhook local), convertendo tudo no mesmo formato
+de envelope. O **WhatsApp** continua provado apenas contra o **stub HTTP local (`127.0.0.1`)** -
+sem credencial real, sem número real: nada de WhatsApp real passou por aqui. O **Telegram** foi
+além: com o token real do canal do cliente, a coleta **buscou as mensagens de verdade** (com
+`offset` confirmado), **baixou os anexos** (`getFile` + download) e o pipeline leu as fotos - ver a
+limitação 1 para o que essa leitura entregou e o que não entregou.
 
 **3. O pipeline não usa rede; a coleta, sim.** O processamento (leitura, extração, validação,
 planilha) é **100% local e offline** - nenhuma API, nenhum LLM, nenhum serviço externo. A extração
@@ -1063,7 +1099,7 @@ em produção faltam três coisas do ambiente do cliente: **endereço público e
 
 ```
 app/          código do pipeline (contratos, config, ingestão, extração, normalização,
-              persistência, revisão, canais, CLI)
+              persistência, revisão, aprovacao, canais, CLI)
 data/mocks/   material sintético gerado por script (PDFs, mensagens, manifest.json)
 data/out/     saída real da rodada: planilha, auditoria, fila de pendências, painel
 logs/         log de execução do dia (pipeline-AAAAMMDD.log); ignorado pelo git
@@ -1071,8 +1107,8 @@ docs/         desenho técnico e planejamento (arquitetura, dados/IA, qualidade,
 docs/execucao/contrato de execução das fases (00 e 00b) e specs das frentes de trabalho
 docs/linear/  o projeto-mãe e o painel do squad gerado do quadro do Linear (painel.md)
 relatorios/   RELATORIO-ENTREGA.md, CRONOGRAMA.md e RELATORIO-FECHAMENTO.md
-tests/        suíte pytest (437 testes) + RELATORIO-F5.md, test_imagem.py,
-              test_multipagina.py, test_rajada.py e evidencia/
+tests/        suíte pytest (459 testes) + RELATORIO-F5.md, test_imagem.py,
+              test_multipagina.py, test_rajada.py, test_aprovacao.py e evidencia/
 tools/        gerar_mocks.py      material sintético determinístico
               verificar.py        prova a idempotência (roda o pipeline 2x)
               receber_webhook_whatsapp.py  receptor local do webhook do WhatsApp
