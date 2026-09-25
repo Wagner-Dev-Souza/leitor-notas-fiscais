@@ -153,7 +153,12 @@ def stub_http(respondedor):
             partes = urlparse(self.path)
             recebidas.append({"metodo": metodo, "caminho": partes.path, "consulta": parse_qs(partes.query)})
             status, corpo = respondedor(partes.path, parse_qs(partes.query), corpo_bruto)
-            dados = corpo.encode("utf-8") if isinstance(corpo, str) else json.dumps(corpo, ensure_ascii=False).encode("utf-8")
+            if isinstance(corpo, bytes):
+                dados = corpo  # download de arquivo: corpo binario cru, sem JSON
+            elif isinstance(corpo, str):
+                dados = corpo.encode("utf-8")
+            else:
+                dados = json.dumps(corpo, ensure_ascii=False).encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(dados)))
@@ -908,3 +913,380 @@ def test_offset_da_coleta_sobrevive_a_estado_corrompido(tmp_path):
     resultado = canais.coletar_telegram(cfg, transporte=transporte)
     assert resultado.mensagens == 1
     assert transporte.chamadas[0]["params"] is None
+
+
+
+
+
+# ------------------------------------------------------- anexos: o arquivo tem de ser baixado
+
+#
+
+# Requisito do cliente: nota mandada como FOTO ou PDF no canal tem de ser LIDA, e nao cair
+
+# na fila como mensagem sem texto. O `getUpdates` nao entrega o arquivo: sao duas chamadas
+
+# (`getFile` + download). O que se prova aqui e o ciclo contra o stub HTTP local, com o
+
+# `transporte_urllib` de verdade.
+
+
+
+FILE_ID_FOTO = "AgACAgEAAxkBAAIC_FOTO"
+
+FILE_UNICO_FOTO = "AQADFOTOUNICA"
+
+FOTO_BYTES = b"\xff\xd8\xff\xe0" + b"NOTA_FISCAL_FICTICIA_DA_FOTO" + b"\xff\xd9"
+
+CAMINHO_REMOTO = "photos/file_1.jpg"
+
+
+
+
+
+def update_telegram_foto(update_id: int, file_id=FILE_ID_FOTO, file_unico=FILE_UNICO_FOTO):
+
+    """Envelope de FOTO exatamente como o Telegram manda: array `photo` + metadados."""
+
+    return {
+
+        "update_id": update_id,
+
+        "message": {
+
+            "message_id": update_id + 100,
+
+            "from": {"id": 55555, "is_bot": False, "first_name": "Wagner"},
+
+            "chat": {"id": int(TELEGRAM_CHAT_ID), "title": "Compras Fornecedores", "type": "group"},
+
+            "date": 1758200000,
+
+            "photo": [
+
+                {"file_id": f"{file_id}_P", "file_unique_id": f"{file_unico}_P", "width": 90, "height": 60, "file_size": 900},
+
+                {"file_id": file_id, "file_unique_id": file_unico, "width": 1280, "height": 960, "file_size": 90000},
+
+            ],
+
+        },
+
+    }
+
+
+
+
+
+def update_telegram_pdf(update_id: int, file_id="DOC_PDF_FICTICIO", file_unico="DOCUNICO"):
+
+    return {
+
+        "update_id": update_id,
+
+        "message": {
+
+            "message_id": update_id + 100,
+
+            "from": {"id": 55555, "is_bot": False, "first_name": "Wagner"},
+
+            "chat": {"id": int(TELEGRAM_CHAT_ID), "title": "Compras Fornecedores", "type": "group"},
+
+            "date": 1758200000,
+
+            "document": {
+
+                "file_id": file_id,
+
+                "file_unique_id": file_unico,
+
+                "file_name": "nota.pdf",
+
+                "mime_type": "application/pdf",
+
+                "file_size": 1234,
+
+            },
+
+        },
+
+    }
+
+
+
+
+
+def stub_telegram_com_anexo(updates, destino_bytes=FOTO_BYTES, caminho_remoto=CAMINHO_REMOTO):
+
+    """Roteiro do stub: getUpdates -> getFile -> download do arquivo."""
+
+
+
+    def responder(caminho_http, consulta, corpo):
+
+        if caminho_http.endswith("/getUpdates"):
+
+            return 200, {"ok": True, "result": updates}
+
+        if caminho_http.endswith("/getFile"):
+
+            file_id = consulta.get("file_id", [""])[0]
+
+            return 200, {
+
+                "ok": True,
+
+                "result": {"file_id": file_id, "file_size": len(destino_bytes), "file_path": caminho_remoto},
+
+            }
+
+        if "/file/bot" in caminho_http:
+
+            return 200, destino_bytes
+
+        return 404, {"ok": False, "description": "rota nao prevista no stub"}
+
+
+
+    return responder
+
+
+
+
+
+def test_coletar_telegram_baixa_a_foto_para_a_pasta_de_documentos(tmp_path):
+
+    """O caminho real: getUpdates -> getFile -> download, com urllib de verdade."""
+
+    with stub_http(stub_telegram_com_anexo([update_telegram_foto(500)])) as (porta, recebidas):
+
+        cfg = config_de_teste(tmp_path, TELEGRAM_API_BASE=f"http://127.0.0.1:{porta}")
+
+        resultado = canais.coletar_telegram(cfg)
+
+
+
+    assert resultado.mensagens == 1
+
+    rotas = [r["caminho"] for r in recebidas]
+
+    assert rotas[0] == f"/bot{TELEGRAM_TOKEN}/getUpdates"
+
+    assert f"/bot{TELEGRAM_TOKEN}/getFile" in rotas[1]
+
+    assert f"/file/bot{TELEGRAM_TOKEN}/{CAMINHO_REMOTO}" in rotas[2]
+
+
+
+    destino = Path(cfg.inbox_dir) / "pdf" / f"telegram_{FILE_UNICO_FOTO}.jpg"
+
+    assert destino.is_file(), "a foto nao foi baixada para a pasta de documentos"
+
+    assert destino.read_bytes() == FOTO_BYTES, "o arquivo baixado nao bate com o servido"
+
+
+
+    envelope = ler_jsonl(resultado.arquivos[0])[0]
+
+    assert envelope["arquivo_local"] == str(destino)
+
+    assert "1 anexo(s) baixado(s)" in resultado.detalhe
+
+
+
+    # A maior foto do array e a que se baixa: a resolucao pequena nao serve para OCR.
+
+    assert recebidas[1]["consulta"]["file_id"] == [FILE_ID_FOTO]
+
+
+
+
+
+def test_anexo_baixado_nao_vira_pendencia_de_mensagem_vazia(tmp_path):
+
+    """A foto lida e UM artefato (o arquivo). A mensagem vazia nao pode virar fila tambem."""
+
+    from app import ingress
+
+
+
+    with stub_http(stub_telegram_com_anexo([update_telegram_foto(501)])) as (porta, _recebidas):
+
+        cfg = config_de_teste(tmp_path, TELEGRAM_API_BASE=f"http://127.0.0.1:{porta}")
+
+        canais.coletar_telegram(cfg)
+
+
+
+    artefatos = ingress.ingerir(cfg.inbox_dir)
+
+    assert [a.tipo_artefato for a in artefatos] == ["imagem"]
+
+    assert Path(artefatos[0].caminho).name == f"telegram_{FILE_UNICO_FOTO}.jpg"
+
+
+
+
+
+def test_mensagem_com_midia_sem_anexo_baixado_continua_ingerida(tmp_path):
+
+    """Sem `arquivo_local` (envelope antigo/sem download) o comportamento e o de antes."""
+
+    from app import ingress
+
+
+
+    pasta = Path(tmp_path) / "inbox" / "telegram"
+
+    pasta.mkdir(parents=True)
+
+    (pasta / "telegram_coleta_antiga.jsonl").write_text(
+
+        json.dumps(update_telegram_foto(77), ensure_ascii=False) + "\n", encoding="utf-8"
+
+    )
+
+    artefatos = ingress.ingerir(Path(tmp_path) / "inbox")
+
+    assert [a.tipo_artefato for a in artefatos] == ["mensagem"]
+
+    assert artefatos[0].texto == ""
+
+
+
+
+
+def test_anexo_pdf_e_gravado_com_a_extensao_do_arquivo_original(tmp_path):
+
+    with stub_http(
+
+        stub_telegram_com_anexo(
+
+            [update_telegram_pdf(502)],
+
+            destino_bytes=b"%PDF-1.4 NOTA FICTICIA",
+
+            caminho_remoto="documents/nota.pdf",
+
+        )
+
+    ) as (porta, _recebidas):
+
+        cfg = config_de_teste(tmp_path, TELEGRAM_API_BASE=f"http://127.0.0.1:{porta}")
+
+        resultado = canais.coletar_telegram(cfg)
+
+
+
+    destino = Path(cfg.inbox_dir) / "pdf" / "telegram_DOCUNICO.pdf"
+
+    assert destino.is_file() and destino.read_bytes().startswith(b"%PDF")
+
+    assert ler_jsonl(resultado.arquivos[0])[0]["arquivo_local"] == str(destino)
+
+
+
+
+
+def test_mesmo_anexo_em_duas_coletas_nao_duplica_arquivo(tmp_path):
+
+    """`file_unique_id` no nome: rebaixar o mesmo arquivo so reescreve o mesmo caminho."""
+
+    with stub_http(stub_telegram_com_anexo([update_telegram_foto(503)])) as (porta, _recebidas):
+
+        cfg = config_de_teste(tmp_path, TELEGRAM_API_BASE=f"http://127.0.0.1:{porta}")
+
+        canais.coletar_telegram(cfg)
+
+        canais.coletar_telegram(cfg)
+
+
+
+    arquivos = list((Path(cfg.inbox_dir) / "pdf").glob("telegram_*"))
+
+    assert len(arquivos) == 1, f"o mesmo anexo virou {len(arquivos)} arquivos"
+
+    assert not list((Path(cfg.inbox_dir) / "pdf").glob("*.parcial")), "sobrou temporario"
+
+
+
+
+
+def test_falha_no_download_do_anexo_vira_aviso_e_nao_derruba_a_coleta(tmp_path):
+
+    def responder(caminho_http, consulta, corpo):
+
+        if caminho_http.endswith("/getUpdates"):
+
+            return 200, {"ok": True, "result": [update_telegram_foto(504)]}
+
+        return 200, {"ok": False, "description": "file is too big"}
+
+
+
+    with stub_http(responder) as (porta, _recebidas):
+
+        cfg = config_de_teste(tmp_path, TELEGRAM_API_BASE=f"http://127.0.0.1:{porta}")
+
+        resultado = canais.coletar_telegram(cfg)
+
+
+
+    assert resultado.mensagens == 1, "a coleta nao pode morrer por causa de um anexo"
+
+    assert "aviso" in resultado.detalhe
+
+    assert "file is too big" in resultado.detalhe
+
+    envelope = ler_jsonl(resultado.arquivos[0])[0]
+
+    assert "arquivo_local" not in envelope
+
+    assert not list((Path(cfg.inbox_dir) / "pdf").glob("telegram_*"))
+
+
+
+
+
+def test_erro_do_download_nao_vaza_o_token(tmp_path):
+
+    def responder(caminho_http, consulta, corpo):
+
+        if caminho_http.endswith("/getUpdates"):
+
+            return 200, {"ok": True, "result": [update_telegram_foto(505)]}
+
+        return 401, {"ok": False, "description": "Unauthorized"}
+
+
+
+    with stub_http(responder) as (porta, _recebidas):
+
+        cfg = config_de_teste(tmp_path, TELEGRAM_API_BASE=f"http://127.0.0.1:{porta}")
+
+        resultado = canais.coletar_telegram(cfg)
+
+
+
+    assert TELEGRAM_TOKEN not in resultado.detalhe, "o token vazou no detalhe da coleta"
+
+    assert f"bot{TELEGRAM_TOKEN}" not in resultado.detalhe, "a URL com token vazou"
+
+
+
+
+
+def test_baixar_anexos_sem_get_bytes_no_transporte_e_erro_claro(tmp_path):
+
+    """Transporte injetado sem download nao pode estourar com AttributeError."""
+
+    cfg = config_de_teste(tmp_path)
+
+    envelopes = [update_telegram_foto(506)]
+
+    with pytest.raises(canais.ErroCanal) as capturado:
+
+        canais.baixar_anexos_telegram(cfg, TransporteFalso(), envelopes)
+
+    assert "get_bytes" in str(capturado.value)
+

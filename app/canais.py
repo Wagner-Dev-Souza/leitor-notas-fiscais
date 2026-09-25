@@ -31,6 +31,8 @@ __all__ = [
     "CANAL_TELEGRAM",
     "CANAL_WHATSAPP",
     "CANAIS_CONHECIDOS",
+    "PASTA_DOCUMENTOS",
+    "TAMANHO_MAX_ANEXO",
     "ErroCanal",
     "ErroHTTP",
     "ErroRede",
@@ -38,6 +40,7 @@ __all__ = [
     "TransporteHTTP",
     "transporte_urllib",
     "envelopes_telegram",
+    "baixar_anexos_telegram",
     "coletar_telegram",
     "ler_webhook_whatsapp",
     "coletar",
@@ -107,6 +110,14 @@ class TransporteHTTP(Protocol):
         timeout: float = 30,
     ) -> dict: ...
 
+    def get_bytes(
+        self,
+        url: str,
+        params: Optional[dict] = None,
+        cabecalhos: Optional[dict] = None,
+        timeout: float = 60,
+    ) -> bytes: ...
+
 
 class _TransporteUrllib:
     """Transporte real, `urllib` da biblioteca padrao.
@@ -175,6 +186,40 @@ class _TransporteUrllib:
             method="POST",
         )
         return self._executar(requisicao, timeout)
+
+    def get_bytes(
+        self,
+        url: str,
+        params: Optional[dict] = None,
+        cabecalhos: Optional[dict] = None,
+        timeout: float = 60,
+    ) -> bytes:
+        """Download binario (anexo do Telegram). Mesmos erros do `get_json`, sem URL."""
+        alvo = url
+        if params:
+            alvo = f"{url}{'&' if '?' in url else '?'}{urllib.parse.urlencode(params)}"
+        requisicao = urllib.request.Request(
+            alvo, headers={"Accept": "*/*", **(cabecalhos or {})}, method="GET"
+        )
+        return self._executar_bytes(requisicao, timeout)
+
+    def _executar_bytes(self, requisicao: "urllib.request.Request", timeout: float) -> bytes:
+        try:
+            with urllib.request.urlopen(requisicao, timeout=timeout) as resposta:
+                return resposta.read()
+        except urllib.error.HTTPError as exc:
+            motivo = ""
+            try:
+                corpo_erro = exc.read().decode("utf-8", errors="replace")
+                dados = json.loads(corpo_erro)
+                motivo = str(dados.get("description") or dados.get("error") or "")
+            except Exception:  # corpo de erro nem sempre e JSON: nao importa
+                motivo = str(exc.reason or "")
+            raise ErroHTTP(int(exc.code), motivo) from None
+        except urllib.error.URLError as exc:
+            raise ErroRede(str(getattr(exc, "reason", exc) or "falha de rede")) from None
+        except TimeoutError as exc:
+            raise ErroRede(f"tempo esgotado: {exc}") from None
 
 
 def transporte_urllib() -> TransporteHTTP:
@@ -265,11 +310,203 @@ def envelopes_telegram(updates: Sequence[dict], chat_id: Optional[str] = None) -
     return saida
 
 
+# ------------------------------------------------------------------ anexos do Telegram
+#
+# A coleta nasceu gravando SO metadados de midia (`file_id`, `file_name`, `mime_type`):
+# a nota que chegava como FOTO ou PDF no canal entrava como mensagem sem texto e morria
+# na fila como `documento_ilegivel`. O `getUpdates` nunca entrega o arquivo - ele vem em
+# DUAS chamadas: `getFile` (metadados do arquivo) e o download em
+# `<api_base>/file/bot<token>/<file_path>`.
+#
+# O destino e a pasta de DOCUMENTOS da inbox (`<INBOX_DIR>/pdf`), a MESMA que o `ingress`
+# varre: PDF entra pela camada de texto e imagem entra pelo OCR. Assim o pipeline atual
+# digere o anexo sem nenhuma alteracao.
+
+PASTA_DOCUMENTOS = "pdf"
+
+# Limite do Bot API para `getFile`/download. Acima disso o Telegram recusa e a mensagem
+# vira aviso da coleta (nao derruba a rodada).
+TAMANHO_MAX_ANEXO = 20 * 1024 * 1024
+
+_EXT_POR_MIME = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/tiff": ".tiff",
+    "image/bmp": ".bmp",
+    "application/pdf": ".pdf",
+    "video/mp4": ".mp4",
+    "audio/mpeg": ".mp3",
+    "audio/mp4": ".m4a",
+    "audio/ogg": ".ogg",
+    "audio/x-wav": ".wav",
+}
+_EXT_POR_CHAVE = {"photo": ".jpg", "video": ".mp4", "voice": ".ogg"}
+
+
+def _anexo_do_envelope(msg: dict) -> Optional[dict]:
+    """Bloco de midia de um envelope do Telegram, ou None.
+
+    Documento tem prioridade sobre foto: o `document` preserva o arquivo original (o PDF
+    da nota, por exemplo). Sem documento, vale a MAIOR foto do array - o Telegram manda a
+    mesma imagem em varias resolucoes.
+    """
+    for chave in ("document", "video", "audio", "voice"):
+        bloco = msg.get(chave)
+        if isinstance(bloco, dict) and bloco.get("file_id"):
+            return {"chave": chave, "bloco": bloco}
+    fotos = msg.get("photo")
+    if isinstance(fotos, list) and fotos:
+        validas = [f for f in fotos if isinstance(f, dict) and f.get("file_id")]
+        if validas:
+            # Melhor resolucao: o Telegram manda a mesma foto em varios tamanhos. Decide pelo
+            # tamanho do arquivo e, se ele faltar, pela largura - nunca pela posicao no array.
+            maior = max(
+                validas,
+                key=lambda f: (int(f.get("file_size") or 0), int(f.get("width") or 0)),
+            )
+            return {"chave": "photo", "bloco": maior}
+    return None
+
+
+def _extensao_anexo(chave: str, bloco: dict, caminho_remoto: str) -> str:
+    """Extensao do arquivo baixado: nome original > mime > caminho remoto > chave."""
+    nome = str(bloco.get("file_name") or "")
+    sufixo = Path(nome).suffix.lower()
+    if sufixo:
+        return sufixo
+    mime = str(bloco.get("mime_type") or "").split(";")[0].strip().lower()
+    if mime in _EXT_POR_MIME:
+        return _EXT_POR_MIME[mime]
+    sufixo = Path(str(caminho_remoto or "")).suffix.lower()
+    if sufixo:
+        return sufixo
+    return _EXT_POR_CHAVE.get(chave, ".bin")
+
+
+def _nome_anexo(chave: str, bloco: dict, caminho_remoto: str) -> str:
+    """Nome deterministico `<canal>_<id_unico><ext>` (o mesmo anexo nao duplica arquivo).
+
+    `file_unique_id` e estavel entre coletas; `file_id` muda de bot para bot, por isso
+    so entra como reserva.
+    """
+    base = str(bloco.get("file_unique_id") or bloco.get("file_id") or "anexo")
+    limpo = "".join(c for c in base if c.isalnum() or c in "-_") or "anexo"
+    return f"{CANAL_TELEGRAM}_{limpo}{_extensao_anexo(chave, bloco, caminho_remoto)}"
+
+
+def baixar_anexos_telegram(
+    cfg: Any,
+    transporte: TransporteHTTP,
+    envelopes: Sequence[dict],
+    pasta_documentos: Optional[Path] = None,
+    api_base: Optional[str] = None,
+    token: Optional[str] = None,
+    timeout: Optional[float] = None,
+) -> tuple[int, list[str]]:
+    """Baixa os anexos dos envelopes para a pasta de documentos. -> (baixados, avisos).
+
+    Anota cada envelope com `arquivo_local` (caminho do arquivo gravado) para o envelope
+    continuar sendo a trilha do que chegou. Envelope sem midia e ignorado.
+
+    Falha de UM anexo vira aviso, nunca excecao: uma foto grande demais ou um arquivo
+    apagado no Telegram nao pode derrubar a coleta inteira.
+    """
+    if not envelopes:
+        return 0, []
+    if not _config_presente(cfg):
+        raise ErroCanal("telegram: configuracao ausente - carregue o .env antes de coletar")
+    telegram = cfg.telegram
+    if api_base is None:
+        api_base = str(getattr(telegram, "api_base", "") or "").rstrip("/")
+    if token is None:
+        token = str(getattr(telegram, "token", "") or "")
+    if not api_base or not token:
+        raise ErroCanal(
+            "telegram: sem TELEGRAM_API_BASE/TELEGRAM_BOT_TOKEN nao ha como baixar anexo"
+        )
+
+    pasta = Path(pasta_documentos) if pasta_documentos is not None else (
+        Path(cfg.inbox_dir) / PASTA_DOCUMENTOS
+    )
+    pasta.mkdir(parents=True, exist_ok=True)
+    if timeout is None:
+        timeout = float(getattr(telegram, "timeout_s", 30) or 30)
+
+    baixados = 0
+    avisos: list[str] = []
+    for envelope in envelopes:
+        if not isinstance(envelope, dict):
+            continue
+        msg = (
+            envelope.get("message")
+            or envelope.get("edited_message")
+            or envelope.get("channel_post")
+        )
+        if not isinstance(msg, dict):
+            continue
+        achado = _anexo_do_envelope(msg)
+        if achado is None:
+            continue
+        # O transporte tem de saber baixar arquivo. Checado so quando ha anexo de verdade:
+        # coleta de texto puro nao depende de download nenhum.
+        if not hasattr(transporte, "get_bytes"):
+            raise ErroCanal(
+                "telegram: transporte sem suporte a download de arquivo (get_bytes)"
+            )
+        bloco = achado["bloco"]
+        file_id = str(bloco.get("file_id"))
+        rotulo = f"message_id {msg.get('message_id')}"
+        try:
+            consulta = transporte.get_json(
+                f"{api_base}/bot{token}/getFile", params={"file_id": file_id}, timeout=timeout
+            )
+            if not isinstance(consulta, dict) or consulta.get("ok") is False:
+                descricao = str((consulta or {}).get("description") or "sem descricao")
+                avisos.append(f"anexo de {rotulo} nao baixado: getFile recusado ({descricao})")
+                continue
+            resultado = consulta.get("result") or {}
+            caminho_remoto = str(resultado.get("file_path") or "")
+            if not caminho_remoto:
+                avisos.append(f"anexo de {rotulo} nao baixado: getFile sem file_path")
+                continue
+            dados = transporte.get_bytes(
+                f"{api_base}/file/bot{token}/{caminho_remoto}", timeout=timeout
+            )
+        except (ErroHTTP, ErroRede) as exc:
+            avisos.append(f"anexo de {rotulo} nao baixado ({exc})")
+            continue
+
+        if not dados:
+            avisos.append(f"anexo de {rotulo} nao baixado: arquivo vazio")
+            continue
+        if len(dados) > TAMANHO_MAX_ANEXO:
+            avisos.append(
+                f"anexo de {rotulo} nao baixado: {len(dados)} bytes acima do limite do Bot API"
+            )
+            continue
+
+        destino = pasta / _nome_anexo(achado["chave"], bloco, caminho_remoto)
+        try:
+            if not (destino.exists() and destino.stat().st_size == len(dados)):
+                parcial = destino.with_name(destino.name + ".parcial")
+                parcial.write_bytes(dados)
+                parcial.replace(destino)
+        except OSError as exc:
+            avisos.append(f"anexo de {rotulo} nao gravado em {pasta.name}/ ({exc})")
+            continue
+        envelope["arquivo_local"] = str(destino)
+        baixados += 1
+    return baixados, avisos
+
+
 def coletar_telegram(
     cfg: Any,
     transporte: Optional[TransporteHTTP] = None,
     destino: Optional[Path] = None,
     offset: Optional[int] = None,
+    pasta_documentos: Optional[Path] = None,
 ) -> ResultadoColeta:
     """`GET {api_base}/bot{token}/getUpdates` e grava os updates no inbox.
 
@@ -278,6 +515,10 @@ def coletar_telegram(
 
     Sem update novo: `arquivos=()` com `detalhe` explicando - nao e erro.
     Falha de rede/HTTP: `ErroCanal` com o status, citando o **nome** da variavel.
+
+    Envelope com midia tem o arquivo **baixado** para a pasta de documentos da inbox
+    (`<INBOX_DIR>/pdf`) e ganha `arquivo_local` no jsonl: a foto/PDF da nota passa a ser
+    lida pelo OCR/camada de texto do pipeline, e nao morre mais como mensagem sem texto.
     """
     if not _config_presente(cfg):
         raise ErroCanal("telegram: configuracao ausente - carregue o .env antes de coletar")
@@ -342,7 +583,18 @@ def coletar_telegram(
             ),
         )
 
+    # Anexo (foto/PDF/documento) e baixado ANTES de gravar o envelope: sem isso a nota que
+    # chega como imagem nunca vira artefato e a fila so acumula `documento_ilegivel`. O
+    # caminho local entra no proprio envelope (`arquivo_local`), que continua sendo a trilha
+    # do que chegou pelo canal.
+    anexos, avisos_anexo = baixar_anexos_telegram(
+        cfg, transporte, envelopes, pasta_documentos=pasta_documentos
+    )
     caminho = _gravar_envelopes(pasta, CANAL_TELEGRAM, envelopes)
+    cauda = f" | {anexos} anexo(s) baixado(s) para {PASTA_DOCUMENTOS}/" if anexos else ""
+    if avisos_anexo:
+        cauda += f" | avisos: {'; '.join(avisos_anexo)}"
+
     return ResultadoColeta(
         canal=CANAL_TELEGRAM,
         destino=pasta,
@@ -350,7 +602,7 @@ def coletar_telegram(
         mensagens=len(envelopes),
         detalhe=(
             f"telegram: {len(envelopes)} update(s) gravado(s) em {caminho.name} "
-            f"| offset confirmado ate {ler_offset_telegram(cfg)}"
+            f"| offset confirmado ate {ler_offset_telegram(cfg)}{cauda}"
         ),
     )
 
