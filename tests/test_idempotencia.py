@@ -127,14 +127,19 @@ def test_pipeline_segunda_rodada_nao_gera_linha_duplicada_nem_novo_pedido(inbox_
     assert len(pedidos) == primeira["linhas_planilha"]
 
 
-def test_ledger_tem_uma_linha_por_pedido_validado_e_csv_casa_com_xlsx(inbox_tmp, out_tmp):
+def test_ledger_tem_uma_linha_por_pedido_e_csv_casa_com_xlsx(inbox_tmp, out_tmp):
+    """Lancamento direto: uma linha por PEDIDO - aprovado ou nao - e CSV/XLSX com a mesma conta."""
     resumo = rodar_pipeline(inbox_tmp, out_tmp)
     linhas = linhas_planilha(out_tmp / "controle_financeiro.xlsx")
     csv_bruto = (out_tmp / "controle_financeiro.csv").read_text(encoding="utf-8").splitlines()
 
-    assert len(linhas) == resumo["auto_aprovados"] == resumo["linhas_planilha"]
+    assert len(linhas) == resumo["linhas_planilha"]
+    assert len(linhas) >= resumo["auto_aprovados"], (
+        "a planilha leva todos os pedidos: os aprovados automaticos sao um subconjunto"
+    )
     assert len(csv_bruto) == len(linhas) + 1, "CSV e XLSX com contagens diferentes"
-    assert all(linha["status_validacao"] in ("auto_aprovado", "validado") for linha in linhas)
+    assert all(linha["pedido_id"] for linha in linhas)
+    assert {linha["status_validacao"] for linha in linhas} <= {"OK", "CONFERIR", "ILEGIVEL"}
 
 
 def test_documento_e_pedido_ficam_ligados_na_trilha_de_auditoria(inbox_tmp, out_tmp):

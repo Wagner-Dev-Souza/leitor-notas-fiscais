@@ -102,9 +102,14 @@ def test_conteudo_da_planilha_do_comando_unico(python_venv, raiz):
     for linha in linhas:
         assert linha["pedido_id"], "linha sem pedido_id (sem rastro de origem)"
         assert linha["documento_id"], "linha sem documento_id de origem"
-        assert linha["valor_total_centavos"] is not None
-        assert linha["valor_total"] == _brl(linha["valor_total_centavos"])
-        assert linha["status_validacao"] in ("auto_aprovado", "validado")
+        assert linha["status_validacao"] in ("OK", "CONFERIR", "ILEGIVEL")
+        if linha["valor_total_centavos"] is None or not isinstance(
+            linha["valor_total_centavos"], int
+        ):
+            # Sem valor numerico a celula carrega o texto de ausencia - nunca um numero inventado.
+            assert linha["valor_total"] in ("NAO ENCONTRADO", "ILEGIVEL", None), linha["valor_total"]
+        else:
+            assert linha["valor_total"] == _brl(linha["valor_total_centavos"])
 
 
 def test_conteudo_da_trilha_e_da_fila_do_comando_unico(python_venv, raiz):
@@ -159,7 +164,12 @@ def test_ocr_esta_rotulado_na_trilha_do_comando_unico(python_venv, raiz):
         assert resumo["ocr_real_artefatos"] >= 1
 
 
-def test_comando_unico_com_diretorios_isolados_publica_so_os_validados(python_venv, raiz, tmp_path):
+def test_comando_unico_publica_todos_os_pedidos_com_destaque(python_venv, raiz, tmp_path):
+    """Lancamento direto: TODOS os pedidos entram; o que ficou duvidoso entra MARCADO.
+
+    Inversao consciente do criterio anterior (a planilha publicava so os aprovados): o cliente
+    pediu que a nota entre sempre e que a falha apareca na propria linha, pintada.
+    """
     inbox = _inbox_isolada(tmp_path)
     out = tmp_path / "out"
     db = tmp_path / "pipeline.db"
@@ -171,11 +181,15 @@ def test_comando_unico_com_diretorios_isolados_publica_so_os_validados(python_ve
 
     linhas = linhas_planilha(out / "controle_financeiro.xlsx")
     publicados = {linha["numero_pedido"] for linha in linhas}
-    assert len(linhas) == 7, f"a rodada dos mocks devia publicar 7 pedidos, publicou {len(linhas)}"
-    assert publicados == {"1001", "1002", "2001", "3001", "5001", "5002", "5003"}
-    assert "3002" not in publicados, "caso B2 (divergencia) entrou na planilha"
-    assert "2002" not in publicados, "caso B5 (injecao) entrou na planilha"
-    assert "2003" not in publicados, "caso B1 (OCR com baixa confianca) entrou na planilha"
+    assert len(linhas) == 20, f"a rodada dos mocks tem 20 pedidos, publicou {len(linhas)}"
+    for numero in ("1001", "1002", "2001", "3001", "5001", "5002", "5003"):
+        assert numero in publicados, f"o pedido {numero} (aprovado automatico) nao entrou"
+    # Os casos que antes ficavam fora agora entram e chegam marcados.
+    assert {"2002", "2003", "3002"} <= publicados, "caso duvidoso nao pode ficar fora da planilha"
+
+    resumo = json.loads((out / "resumo.json").read_text(encoding="utf-8"))
+    assert resumo["destaques_planilha"]["linhas_destacadas"] >= 1
+    assert resumo["destaques_planilha"]["linhas_destacadas"] <= len(linhas)
 
     registros = ler_auditoria(out / "auditoria.jsonl")
     assert len(registros) == TOTAL_DO_CORPUS, (
@@ -198,7 +212,7 @@ def test_duas_rodadas_do_comando_unico_sao_idempotentes(python_venv, raiz, tmp_p
     assert segunda.returncode == 0, segunda.stderr
     linhas_segunda = linhas_planilha(out / "controle_financeiro.xlsx")
 
-    assert len(linhas_primeira) == len(linhas_segunda) == 7
+    assert len(linhas_primeira) == len(linhas_segunda) == 20
     assert [l["pedido_id"] for l in linhas_primeira] == [l["pedido_id"] for l in linhas_segunda]
 
     resumo = json.loads((out / "resumo.json").read_text(encoding="utf-8"))

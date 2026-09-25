@@ -35,6 +35,7 @@ from app.contratos import (
 from conftest import (
     MOCKS,
     construir_inbox_adversarial,
+    destaques_da_planilha,
     ler_auditoria,
     ler_fila,
     linhas_planilha,
@@ -102,10 +103,17 @@ def test_b5_injecao_no_pdf_vai_para_revisao_na_trilha_e_na_fila(rodada_mocks):
     assert MOTIVO_INJECAO_SUSPEITA in motivos_da_fila(fila, PDF_INJECAO)
 
 
-def test_b5_injecao_no_pdf_nao_gera_linha_publicada(rodada_mocks):
-    linhas = linhas_planilha(rodada_mocks["out"] / "controle_financeiro.xlsx")
-    publicados = {linha["numero_pedido"] for linha in linhas}
-    assert "2002" not in publicados, "documento com injecao foi publicado na planilha"
+def test_b5_injecao_no_pdf_entra_com_a_linha_em_vermelho(rodada_mocks):
+    """Lancamento direto: o caso B5 ENTRA na planilha, com a linha pintada de vermelho.
+
+    O que continua proibido e o valor pedido pela instrucao maliciosa aparecer (tem teste
+    proprio); a linha entra porque a nota existe, e o vermelho e o aviso para conferir.
+    """
+    destaques = destaques_da_planilha(rodada_mocks["out"] / "controle_financeiro.xlsx")
+    assert "2002" in destaques, "o caso B5 (injecao) ficou fora da planilha"
+    assert "FFFF0000" in destaques["2002"]["linha"], (
+        "linha com instrucao suspeita tem de estar destacada em vermelho"
+    )
 
 
 def test_b5_injecao_na_mensagem_preserva_o_valor_real(decisoes, por_arquivo):
@@ -156,12 +164,18 @@ def test_b2_divergencia_acima_da_tolerancia_e_sinalizada(decisoes, por_arquivo):
     assert status == "revisao_humana"
 
 
-def test_b2_nao_publica_linha_na_planilha(rodada_mocks):
+def test_b2_entra_com_valor_em_branco_e_celula_vermelha(rodada_mocks):
+    """Divergencia de soma: a linha entra, mas o valor NAO se afirma - celula vermelha e vazia."""
     linhas = linhas_planilha(rodada_mocks["out"] / "controle_financeiro.xlsx")
-    assert "3002" not in {linha["numero_pedido"] for linha in linhas}, (
-        "o caso B2 entrou na planilha com valor nao reconciliado"
+    b2 = [linha for linha in linhas if str(linha["numero_pedido"]) == "3002"]
+    assert len(b2) == 1, "o caso B2 tem de entrar na planilha (lancamento direto)"
+    assert b2[0]["valor_total_centavos"] is None, (
+        "valor com divergencia nao pode ser publicado como certo"
     )
-    assert all(linha["valor_total_centavos"] != 67640 for linha in linhas)
+    destaques = destaques_da_planilha(rodada_mocks["out"] / "controle_financeiro.xlsx")
+    assert destaques["3002"]["celulas"]["valor_total"] == "FFFF0000", (
+        "a celula do valor divergente tem de ficar vermelha"
+    )
 
 
 def test_b2_excecao_leva_os_numeros_da_divergencia(rodada_mocks):
@@ -195,9 +209,17 @@ def test_documento_ilegivel_vira_excecao_e_nao_publica_nada(rodada_hostil):
     assert MOTIVO_DOC_ILEGIVEL in motivos_da_fila(fila, arquivo)
 
 
-def test_documento_ilegivel_nao_gera_linha_na_planilha(rodada_hostil):
+def test_documento_ilegivel_entra_com_ilegivel_nos_campos(rodada_hostil):
+    """Lancamento direto: o ilegivel ENTRA na planilha - dizendo ILEGIVEL, nao em branco mudo."""
     linhas = linhas_planilha(rodada_hostil["out"] / "controle_financeiro.xlsx")
-    assert linhas == [], "a rodada hostil publicou linha na planilha"
+    ilegiveis = [linha for linha in linhas if linha["valor_total"] == "ILEGIVEL"]
+    assert len(ilegiveis) == 1, f"esperado 1 documento ilegivel na planilha, achou {len(ilegiveis)}"
+    linha = ilegiveis[0]
+    assert linha["emitente_cnpj"] == "ILEGIVEL"
+    assert linha["data_emissao"] == "ILEGIVEL"
+    assert linha["numero_pedido"] == "ILEGIVEL"
+    assert linha["status_validacao"] == "ILEGIVEL"
+    assert linha["arquivo_origem"], "a linha tem de dizer de qual arquivo veio"
 
 
 def test_documento_ilegivel_fica_marcado_como_rejeitado_no_banco(rodada_hostil):
@@ -235,6 +257,14 @@ def test_chave_com_dv_invalido_e_rejeitada_e_nao_publicada(rodada_hostil):
     assert MOTIVO_CHAVE_INVALIDA in motivos_da_fila(fila, arquivo)
 
 
-def test_nf_com_dv_torto_nao_vira_linha_na_planilha(rodada_hostil):
+def test_nf_com_dv_torto_entra_com_o_cnpj_marcado(rodada_hostil):
+    """CNPJ com DV invalido nao some da planilha: entra com a celula marcada para conferencia."""
     linhas = linhas_planilha(rodada_hostil["out"] / "controle_financeiro.xlsx")
-    assert "9001" not in {linha["numero_pedido"] for linha in linhas}
+    alvo = [linha for linha in linhas if str(linha["numero_pedido"]) == "9001"]
+    assert len(alvo) == 1, "a nota 9001 tem de entrar na planilha (lancamento direto)"
+    assert alvo[0]["status_validacao"] == "CONFERIR"
+
+    destaques = destaques_da_planilha(rodada_hostil["out"] / "controle_financeiro.xlsx")
+    assert destaques["9001"]["celulas"]["emitente_cnpj"] == "FFFFC000", (
+        "a celula do CNPJ suspeito tem de ficar amarela"
+    )

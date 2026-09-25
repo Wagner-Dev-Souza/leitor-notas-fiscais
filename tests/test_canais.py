@@ -849,7 +849,9 @@ def test_modo_real_coleta_e_roda_o_pipeline_com_stub_local(tmp_path):
     ]
     numeros = {str(linha["numero_pedido"]) for linha in linhas}
     assert "1001" in numeros, "a NF do corpus nao foi processada pelo modo real"
-    assert "7501" not in numeros
+    # Lancamento direto (PO, 25/09/2026): o pedido vindo de mensagem tambem entra na planilha,
+    # marcado para conferencia - nao fica so na fila de excecoes.
+    assert "7501" in numeros, "toda nota/pedido entra na planilha"
 
     fila = json.loads((tmp_path / "out" / "fila_excecoes.json").read_text(encoding="utf-8"))
     assert fila["total"] >= 1, "a ordem coletada tem de estar na fila de excecoes"

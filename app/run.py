@@ -130,17 +130,16 @@ def _linhas_resumo(resumo: dict, verbose: bool, contexto: dict) -> list[str]:
         linhas.append("Motivos na fila de excecoes:")
         for motivo, qtd in resumo["motivos"].items():
             linhas.append(f"   {motivo:34s} {qtd}")
-    aprovacao = resumo.get("aprovacao_planilha") or {}
-    if aprovacao.get("lidas"):
-        # So aparece quando houve decisao humana preenchida na aba `Revisao`: e o registro de
-        # que a fila andou (aprovacao vira linha na planilha e fecha a pendencia).
+    destaques = resumo.get("destaques_planilha") or {}
+    if destaques.get("linhas_destacadas"):
+        # O placar do que o humano tem de conferir NA PLANILHA (celula amarela/vermelha).
         linhas.append(_linha())
-        linhas.append("Aprovacao na planilha (aba Revisao):")
-        linhas.append(f"   lidas               {aprovacao.get('lidas', 0)}")
-        linhas.append(f"   aprovadas           {aprovacao.get('aprovadas', 0)}")
-        linhas.append(f"   rejeitadas          {aprovacao.get('rejeitadas', 0)}")
-        linhas.append(f"   ignoradas           {aprovacao.get('ignoradas', 0)}")
-        linhas.append(f"   pendencias fechadas {aprovacao.get('pendencias_fechadas', 0)}")
+        linhas.append("Planilha - linhas que pedem conferencia (destacadas):")
+        linhas.append(f"   total               {destaques.get('linhas_destacadas', 0)}")
+        linhas.append(f"   ilegiveis           {destaques.get('ilegiveis', 0)}")
+        linhas.append(f"   risco (linha verm.) {destaques.get('risco', 0)}")
+        linhas.append(f"   contradicoes        {destaques.get('contradicoes', 0)}")
+        linhas.append(f"   leitura duvidosa    {destaques.get('leituras_duvidosas', 0)}")
     linhas.append(_linha())
     linhas.append("Arquivos gerados:")
     for chave in (

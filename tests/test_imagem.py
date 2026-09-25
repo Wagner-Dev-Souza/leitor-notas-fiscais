@@ -156,11 +156,25 @@ def test_imagem_atravessa_o_pipeline_e_chega_a_fila_com_os_campos(tmp_path):
     assert resumo["ocr_real_artefatos"] == 1
 
     # Leitura de OCR entra com confianca 0.65 (base do contrato para OCR): fica ABAIXO do
-    # limiar de aprovacao automatica (0.90) e por isso vai para revisao humana - nunca
-    # para a planilha sem conferencia. Isso e o desenho do produto, nao um defeito.
+    # limiar de aprovacao automatica (0.90) e por isso nasce com duvida de leitura. Desde a
+    # decisao de lancamento direto (PO, 25/09/2026) ela ENTRA na planilha - com a celula
+    # destacada e o status CONFERIR, que e o que substitui a revisao previa.
     assert resumo["auto_aprovados"] == 0
     assert resumo["revisao"] == 1
-    assert resumo["linhas_planilha"] == 0
+    assert resumo["linhas_planilha"] == 1, "a foto lida tem de chegar na planilha"
+    assert resumo["destaques_planilha"]["linhas_destacadas"] == 1
+    assert resumo["destaques_planilha"]["leituras_duvidosas"] == 1
+
+    from openpyxl import load_workbook
+
+    da_planilha = load_workbook(out / "controle_financeiro.xlsx")["controle_financeiro"]
+    cabecalho = [celula.value for celula in da_planilha[1]]
+    valores = {cabecalho[i]: celula.value for i, celula in enumerate(da_planilha[2])}
+    assert valores["valor_total_centavos"] == VALOR_ALFA, "o valor lido do OCR ficou de fora"
+    assert valores["status_validacao"] == "CONFERIR"
+    assert da_planilha.cell(row=2, column=cabecalho.index("valor_total") + 1).fill.fgColor.rgb == (
+        "FFFFC000"
+    ), "a celula do valor lido por OCR tem de ficar destacada"
 
     trilha = [
         json.loads(linha)
